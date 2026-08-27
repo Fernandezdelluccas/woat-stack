@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Exatas Play — Ranking</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a href="materias.html" class="brand">
+        <span class="brand__mark">🧮</span> Exatas Play
+      </a>
+      <nav class="nav">
+        <a href="materias.html">Matérias</a>
+        <a href="ranking.html">Ranking</a>
+        <a href="professor.html">Professor</a>
+      </nav>
+      <div class="user-chip">
+        <span class="user-chip__avatar">🦊</span> Ana
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="container">
+      <div class="page-head">
+        <span class="eyebrow">Competição amigável</span>
+        <h1>Ranking de Matemática</h1>
+        <p>Continue jogando e acertando para subir de posição!</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Pos.</th>
+              <th>Aluno</th>
+              <th>Turma</th>
+              <th>Pontos</th>
+              <th>Acertos</th>
+              <th>Erros</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="rank-pos rank-pos--gold">🥇 1º</td>
+              <td class="player-cell"><span class="player-cell__avatar">🦄</span> Sofia</td>
+              <td>4º ano</td>
+              <td>980</td>
+              <td><span class="tag tag--correct">54</span></td>
+              <td><span class="tag tag--wrong">6</span></td>
+            </tr>
+            <tr>
+              <td class="rank-pos rank-pos--silver">🥈 2º</td>
+              <td class="player-cell"><span class="player-cell__avatar">🤖</span> Pedro</td>
+              <td>4º ano</td>
+              <td>915</td>
+              <td><span class="tag tag--correct">49</span></td>
+              <td><span class="tag tag--wrong">9</span></td>
+            </tr>
+            <tr>
+              <td class="rank-pos rank-pos--bronze">🥉 3º</td>
+              <td class="player-cell"><span class="player-cell__avatar">🦊</span> Ana</td>
+              <td>3º ano</td>
+              <td>870</td>
+              <td><span class="tag tag--correct">45</span></td>
+              <td><span class="tag tag--wrong">7</span></td>
+            </tr>
+            <tr>
+              <td class="rank-pos">4º</td>
+              <td class="player-cell"><span class="player-cell__avatar">🦕</span> Lucas</td>
+              <td>3º ano</td>
+              <td>760</td>
+              <td><span class="tag tag--correct">38</span></td>
+              <td><span class="tag tag--wrong">11</span></td>
+            </tr>
+            <tr>
+              <td class="rank-pos">5º</td>
+              <td class="player-cell"><span class="player-cell__avatar">🐱</span> Beatriz</td>
+              <td>5º ano</td>
+              <td>705</td>
+              <td><span class="tag tag--correct">33</span></td>
+              <td><span class="tag tag--wrong">8</span></td>
+            </tr>
+            <tr>
+              <td class="rank-pos">6º</td>
+              <td class="player-cell"><span class="player-cell__avatar">🦉</span> Enzo</td>
+              <td>2º ano</td>
+              <td>640</td>
+              <td><span class="tag tag--correct">29</span></td>
+              <td><span class="tag tag--wrong">10</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="hint text-center" style="margin-top:16px;">
+        Dados de exemplo — o cálculo de pontuação em tempo real será conectado ao módulo de lógica do back-end.
+      </p>
+    </div>
+  </main>
+
+  <footer class="footer">Exatas Play · Plataforma de Jogos Educativos de Exatas (nome provisório)</footer>
+
+  <script src="js/nav.js"></script>
+</body>
+</html>

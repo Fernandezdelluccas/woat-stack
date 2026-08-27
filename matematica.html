@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Exatas Play — Matemática</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a href="materias.html" class="brand">
+        <span class="brand__mark">🧮</span> Exatas Play
+      </a>
+      <nav class="nav">
+        <a href="materias.html">Matérias</a>
+        <a href="ranking.html">Ranking</a>
+        <a href="professor.html">Professor</a>
+      </nav>
+      <div class="user-chip">
+        <span class="user-chip__avatar">🦊</span> Ana
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="container">
+      <div class="page-head">
+        <a href="materias.html" class="hint" style="display:inline-block; margin-bottom:10px;">← Voltar para matérias</a>
+        <span class="eyebrow">Matemática</span>
+        <h1>Escolha um minijogo</h1>
+        <p>Cada jogo vale pontos para o seu ranking. Bons estudos!</p>
+      </div>
+
+      <div class="grid grid--narrow">
+        <a href="jogo.html?game=adicao" class="tile">
+          <div class="tile__icon" style="background: rgba(108,92,231,0.14); color: var(--color-primary-dark);">➕</div>
+          <h3 class="tile__title">Adição</h3>
+          <p class="tile__desc">Some os números certinho.</p>
+        </a>
+
+        <a href="jogo.html?game=subtracao" class="tile">
+          <div class="tile__icon" style="background: rgba(255,107,107,0.14); color: var(--color-danger-dark);">➖</div>
+          <h3 class="tile__title">Subtração</h3>
+          <p class="tile__desc">Descubra a diferença.</p>
+        </a>
+
+        <a href="jogo.html?game=multiplicacao" class="tile">
+          <div class="tile__icon" style="background: rgba(253,203,110,0.24); color: #7A4A00;">✖️</div>
+          <h3 class="tile__title">Multiplicação</h3>
+          <p class="tile__desc">Tabuada em forma de jogo.</p>
+        </a>
+
+        <a href="jogo.html?game=divisao" class="tile">
+          <div class="tile__icon" style="background: rgba(0,184,148,0.14); color: var(--color-accent-dark);">➗</div>
+          <h3 class="tile__title">Divisão</h3>
+          <p class="tile__desc">Repartir também é matemática.</p>
+        </a>
+
+        <a href="jogo.html?game=formas" class="tile">
+          <div class="tile__icon" style="background: rgba(108,92,231,0.14); color: var(--color-primary-dark);">🔺</div>
+          <h3 class="tile__title">Formas Geométricas</h3>
+          <p class="tile__desc">Reconheça figuras do dia a dia.</p>
+        </a>
+
+        <div class="tile tile--disabled">
+          <span class="badge">Em breve</span>
+          <div class="tile__icon" style="background: rgba(253,203,110,0.24); color: #7A4A00;">🧩</div>
+          <h3 class="tile__title">Frações</h3>
+          <p class="tile__desc">Pizza, chocolate e frações!</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">Exatas Play · Plataforma de Jogos Educativos de Exatas (nome provisório)</footer>
+
+  <script src="js/nav.js"></script>
+</body>
+</html>

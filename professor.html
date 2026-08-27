@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Exatas Play — Painel do Professor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a href="materias.html" class="brand">
+        <span class="brand__mark">🧮</span> Exatas Play
+      </a>
+      <nav class="nav">
+        <a href="materias.html">Matérias</a>
+        <a href="ranking.html">Ranking</a>
+        <a href="professor.html">Professor</a>
+      </nav>
+      <div class="user-chip">
+        <span class="user-chip__avatar">👩‍🏫</span> Prof. João
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="container">
+      <div class="page-head" style="max-width: 720px;">
+        <span class="eyebrow">Painel do Professor</span>
+        <h1>Relatórios Consolidados</h1>
+        <p>Acompanhe o desempenho da turma em Matemática: taxa de conclusão, acertos, erros e tempo de uso.</p>
+      </div>
+
+      <!-- Cards de indicadores -->
+      <div class="grid grid--narrow" style="margin-bottom: 28px;">
+        <div class="stat-card">
+          <div class="stat-card__label">Alunos ativos</div>
+          <div class="stat-card__value">28</div>
+          <div class="stat-card__delta stat-card__delta--up">▲ 4 esta semana</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__label">Taxa de acerto média</div>
+          <div class="stat-card__value">78%</div>
+          <div class="stat-card__delta stat-card__delta--up">▲ 5% vs. semana passada</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__label">Níveis concluídos</div>
+          <div class="stat-card__value">162</div>
+          <div class="stat-card__delta stat-card__delta--up">▲ 21 esta semana</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__label">Tempo médio de uso</div>
+          <div class="stat-card__value">14min</div>
+          <div class="stat-card__delta stat-card__delta--down">▼ 2min vs. semana passada</div>
+        </div>
+      </div>
+
+      <!-- Gráficos -->
+      <div class="grid" style="grid-template-columns: 2fr 1fr; margin-bottom: 28px;">
+        <div class="card">
+          <h3>Acertos x Erros por minijogo</h3>
+          <p class="hint mt-0">Dados consolidados dos últimos 7 dias.</p>
+
+          <div class="bar-chart">
+            <div class="bar-chart__col">
+              <div class="bar-chart__stack">
+                <div class="bar-chart__seg bar-chart__seg--wrong" style="height: 18%;"></div>
+                <div class="bar-chart__seg bar-chart__seg--correct" style="height: 82%;"></div>
+              </div>
+              <span class="bar-chart__label">Adição</span>
+            </div>
+            <div class="bar-chart__col">
+              <div class="bar-chart__stack">
+                <div class="bar-chart__seg bar-chart__seg--wrong" style="height: 30%;"></div>
+                <div class="bar-chart__seg bar-chart__seg--correct" style="height: 70%;"></div>
+              </div>
+              <span class="bar-chart__label">Subtração</span>
+            </div>
+            <div class="bar-chart__col">
+              <div class="bar-chart__stack">
+                <div class="bar-chart__seg bar-chart__seg--wrong" style="height: 42%;"></div>
+                <div class="bar-chart__seg bar-chart__seg--correct" style="height: 58%;"></div>
+              </div>
+              <span class="bar-chart__label">Multiplicação</span>
+            </div>
+            <div class="bar-chart__col">
+              <div class="bar-chart__stack">
+                <div class="bar-chart__seg bar-chart__seg--wrong" style="height: 47%;"></div>
+                <div class="bar-chart__seg bar-chart__seg--correct" style="height: 53%;"></div>
+              </div>
+              <span class="bar-chart__label">Divisão</span>
+            </div>
+            <div class="bar-chart__col">
+              <div class="bar-chart__stack">
+                <div class="bar-chart__seg bar-chart__seg--wrong" style="height: 12%;"></div>
+                <div class="bar-chart__seg bar-chart__seg--correct" style="height: 88%;"></div>
+              </div>
+              <span class="bar-chart__label">Formas</span>
+            </div>
+          </div>
+
+          <div class="legend" style="margin-top: 14px;">
+            <span><span class="legend__dot" style="background: var(--color-accent);"></span>Acertos</span>
+            <span><span class="legend__dot" style="background: var(--color-danger);"></span>Erros</span>
+          </div>
+        </div>
+
+        <div class="card text-center">
+          <h3>Taxa geral de acerto</h3>
+          <div class="donut" style="--pct: 78; margin: 20px auto;">
+            <div class="donut__hole">
+              <strong>78%</strong>
+              <span>acertos</span>
+            </div>
+          </div>
+          <div class="legend flex-center" style="margin-top: 10px;">
+            <span><span class="legend__dot" style="background: var(--color-accent);"></span>Acertos</span>
+            <span><span class="legend__dot" style="background: var(--color-danger);"></span>Erros</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabela de alunos -->
+      <div class="card--flat" style="margin-bottom: 12px;">
+        <h3 class="mt-0">Desempenho por aluno</h3>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Aluno</th>
+              <th>Turma</th>
+              <th>Níveis concluídos</th>
+              <th>Acertos</th>
+              <th>Erros</th>
+              <th>Tempo de uso</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="player-cell"><span class="player-cell__avatar">🦄</span> Sofia</td>
+              <td>4º ano</td>
+              <td>12</td>
+              <td><span class="tag tag--correct">54</span></td>
+              <td><span class="tag tag--wrong">6</span></td>
+              <td>22min</td>
+            </tr>
+            <tr>
+              <td class="player-cell"><span class="player-cell__avatar">🤖</span> Pedro</td>
+              <td>4º ano</td>
+              <td>11</td>
+              <td><span class="tag tag--correct">49</span></td>
+              <td><span class="tag tag--wrong">9</span></td>
+              <td>19min</td>
+            </tr>
+            <tr>
+              <td class="player-cell"><span class="player-cell__avatar">🦊</span> Ana</td>
+              <td>3º ano</td>
+              <td>10</td>
+              <td><span class="tag tag--correct">45</span></td>
+              <td><span class="tag tag--wrong">7</span></td>
+              <td>17min</td>
+            </tr>
+            <tr>
+              <td class="player-cell"><span class="player-cell__avatar">🦕</span> Lucas</td>
+              <td>3º ano</td>
+              <td>8</td>
+              <td><span class="tag tag--correct">38</span></td>
+              <td><span class="tag tag--wrong">11</span></td>
+              <td>15min</td>
+            </tr>
+            <tr>
+              <td class="player-cell"><span class="player-cell__avatar">🐱</span> Beatriz</td>
+              <td>5º ano</td>
+              <td>7</td>
+              <td><span class="tag tag--correct">33</span></td>
+              <td><span class="tag tag--wrong">8</span></td>
+              <td>12min</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="hint text-center" style="margin-top:16px;">
+        Dados de exemplo — este painel será conectado ao banco PostgreSQL (Supabase) para exibir dados reais.
+      </p>
+    </div>
+  </main>
+
+  <footer class="footer">Exatas Play · Plataforma de Jogos Educativos de Exatas (nome provisório)</footer>
+
+  <script src="js/nav.js"></script>
+</body>
+</html>

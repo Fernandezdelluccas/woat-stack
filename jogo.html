@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Exatas Play — Jogo de Adição</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a href="materias.html" class="brand">
+        <span class="brand__mark">🧮</span> Exatas Play
+      </a>
+      <nav class="nav">
+        <a href="materias.html">Matérias</a>
+        <a href="ranking.html">Ranking</a>
+        <a href="professor.html">Professor</a>
+      </nav>
+      <div class="user-chip">
+        <span class="user-chip__avatar">🦊</span> Ana
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="container game-shell">
+      <a href="matematica.html" class="hint" style="display:inline-block; margin-bottom:18px;">← Sair do jogo</a>
+
+      <div class="game-hud">
+        <div class="game-hud__item">⭐ <span>120 pts</span></div>
+        <div class="game-hud__item">✅ <span>7 acertos</span></div>
+        <div class="game-hud__item">❌ <span>2 erros</span></div>
+        <div class="game-hud__item">⏱️ <span>00:42</span></div>
+      </div>
+
+      <div class="progress-bar" style="margin-bottom:24px;">
+        <div class="progress-bar__fill" style="width: 60%;"></div>
+      </div>
+
+      <div class="card question-card">
+        <span class="eyebrow">Pergunta 6 de 10 · Adição</span>
+        <div class="question-card__prompt">7 + 5 = ?</div>
+
+        <div class="options-grid">
+          <button type="button" class="option-btn">10</button>
+          <button type="button" class="option-btn is-correct">12</button>
+          <button type="button" class="option-btn">13</button>
+          <button type="button" class="option-btn is-wrong">14</button>
+        </div>
+
+        <div class="progress-dots">
+          <span class="done"></span>
+          <span class="done"></span>
+          <span class="done"></span>
+          <span class="done"></span>
+          <span class="done"></span>
+          <span class="current"></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+
+      <p class="hint text-center" style="margin-top:18px;">
+        Protótipo de tela — a lógica de verificação e pontuação em tempo real será implementada na próxima etapa.
+      </p>
+    </div>
+  </main>
+
+  <footer class="footer">Exatas Play · Plataforma de Jogos Educativos de Exatas (nome provisório)</footer>
+
+  <script src="js/nav.js"></script>
+</body>
+</html>
