@@ -490,6 +490,11 @@ select:focus-visible {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
+.grid--single {
+  grid-template-columns: minmax(220px, 420px);
+  justify-content: center;
+}
+
 .tile {
   min-height: 188px;
   background: var(--color-surface);
