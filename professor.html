@@ -19,7 +19,6 @@
       <nav class="nav">
         <a href="materias.html">Matérias</a>
         <a href="ranking.html">Ranking</a>
-        <a href="professor.html">Professor</a>
       </nav>
       <div class="user-chip">
         <span class="user-chip__avatar">👩‍🏫</span> Prof. João
@@ -28,14 +27,42 @@
   </header>
 
   <main class="main">
-    <div class="container">
+    <div class="container" id="loginSection">
+      <div class="card login-card" style="max-width: 420px; margin: 0 auto;">
+        <span class="eyebrow">Acesso restrito</span>
+        <h1>Login do Professor</h1>
+        <p>Digite seu e-mail e senha para acessar o painel.</p>
+
+        <form id="professorLoginForm">
+          <div class="field">
+            <label for="professorEmail">E-mail</label>
+            <input type="email" id="professorEmail" placeholder="professor@escola.com" required />
+          </div>
+
+          <div class="field">
+            <label for="professorPassword">Senha</label>
+            <input type="password" id="professorPassword" placeholder="Digite sua senha" required />
+          </div>
+
+          <button type="submit" class="btn btn--primary btn--block">Entrar</button>
+        </form>
+
+        <p class="hint" id="loginError" style="margin-top:16px; color: var(--color-danger-dark); display:none;">
+          E-mail ou senha incorretos.
+        </p>
+      </div>
+    </div>
+
+    <div class="container" id="dashboardSection" style="display:none;">
       <div class="page-head" style="max-width: 720px;">
         <span class="eyebrow">Painel do Professor</span>
         <h1>Relatórios Consolidados</h1>
         <p>Acompanhe o desempenho da turma em Matemática: taxa de conclusão, acertos, erros e tempo de uso.</p>
+        <div style="margin-top: 18px;">
+          <button type="button" id="logoutProfessor" class="btn btn--ghost">Sair</button>
+        </div>
       </div>
 
-      <!-- Cards de indicadores -->
       <div class="grid grid--narrow" style="margin-bottom: 28px;">
         <div class="stat-card">
           <div class="stat-card__label">Alunos ativos</div>
@@ -59,7 +86,6 @@
         </div>
       </div>
 
-      <!-- Gráficos -->
       <div class="grid" style="grid-template-columns: 2fr 1fr; margin-bottom: 28px;">
         <div class="card">
           <h3>Acertos x Erros por minijogo</h3>
@@ -124,7 +150,6 @@
         </div>
       </div>
 
-      <!-- Tabela de alunos -->
       <div class="card--flat" style="margin-bottom: 12px;">
         <h3 class="mt-0">Desempenho por aluno</h3>
       </div>
@@ -194,5 +219,6 @@
   <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
 
   <script src="js/nav.js"></script>
+  <script src="js/professor-auth.js"></script>
 </body>
 </html>
