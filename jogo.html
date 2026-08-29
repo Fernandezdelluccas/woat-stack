@@ -32,49 +32,30 @@
       <a href="matematica.html" class="hint" style="display:inline-block; margin-bottom:18px;">← Sair do jogo</a>
 
       <div class="game-hud">
-        <div class="game-hud__item">⭐ <span>120 pts</span></div>
-        <div class="game-hud__item">✅ <span>7 acertos</span></div>
-        <div class="game-hud__item">❌ <span>2 erros</span></div>
-        <div class="game-hud__item">⏱️ <span>00:42</span></div>
+        <div class="game-hud__item">⭐ <span id="score">0 pts</span></div>
+        <div class="game-hud__item">✅ <span id="acertos">0 acertos</span></div>
+        <div class="game-hud__item">❌ <span id="erros">0 erros</span></div>
+        <div class="game-hud__item">⏱️ <span id="tempo">00:00</span></div>
       </div>
 
       <div class="progress-bar" style="margin-bottom:24px;">
-        <div class="progress-bar__fill" style="width: 60%;"></div>
+        <div class="progress-bar__fill" id="progressBar" style="width: 0%;"></div>
       </div>
 
       <div class="card question-card">
-        <span class="eyebrow">Pergunta 6 de 10 · Adição</span>
-        <div class="question-card__prompt">7 + 5 = ?</div>
+        <span class="eyebrow" id="questionMeta">Pergunta 1 de 10 · Adição</span>
+        <div class="question-card__prompt" id="questionPrompt">Carregando...</div>
 
-        <div class="options-grid">
-          <button type="button" class="option-btn">10</button>
-          <button type="button" class="option-btn is-correct">12</button>
-          <button type="button" class="option-btn">13</button>
-          <button type="button" class="option-btn is-wrong">14</button>
-        </div>
+        <div class="options-grid" id="optionsGrid"></div>
 
-        <div class="progress-dots">
-          <span class="done"></span>
-          <span class="done"></span>
-          <span class="done"></span>
-          <span class="done"></span>
-          <span class="done"></span>
-          <span class="current"></span>
-          <span></span>
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
+        <div class="progress-dots" id="progressDots"></div>
       </div>
-
-      <p class="hint text-center" style="margin-top:18px;">
-        Protótipo de tela — a lógica de verificação e pontuação em tempo real será implementada na próxima etapa.
-      </p>
     </div>
   </main>
 
   <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
 
+  <script type="module" src="js/game-runner.js"></script>
   <script src="js/nav.js"></script>
 </body>
 </html>
