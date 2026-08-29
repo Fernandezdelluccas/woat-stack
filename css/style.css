@@ -626,6 +626,27 @@ table {
   width: 100%;
   border-collapse: collapse;
   min-width: 560px;
+  table-layout: fixed;
+}
+
+.ranking-table th:nth-child(1),
+.ranking-table td:nth-child(1) {
+  width: 14%;
+}
+
+.ranking-table th:nth-child(2),
+.ranking-table td:nth-child(2) {
+  width: 34%;
+}
+
+.ranking-table th:nth-child(3),
+.ranking-table td:nth-child(3) {
+  width: 26%;
+}
+
+.ranking-table th:nth-child(4),
+.ranking-table td:nth-child(4) {
+  width: 26%;
 }
 
 thead th {
@@ -635,14 +656,15 @@ thead th {
   color: var(--color-primary-dark);
   background: var(--color-table-head);
   padding: 14px 18px;
-  position: sticky;
-  top: var(--header-height);
+  position: static;
+  vertical-align: middle;
 }
 
 tbody td {
   padding: 14px 18px;
   border-top: 1px solid var(--color-border);
   font-size: 0.92rem;
+  vertical-align: middle;
 }
 
 tbody tr {
