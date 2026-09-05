@@ -1,7 +1,14 @@
 (function () {
   const STORAGE_KEY = 'genios-professor-auth';
+  const STORAGE_PROFESSOR = 'genios-professor-nome';
   const VALID_EMAIL = 'professor@escola.com';
   const VALID_PASSWORD = '123456';
+
+  // Mapeia o e-mail de login para o nome do professor gravado em "turmas.professor"
+  // no Supabase. Adicione novos professores aqui conforme forem cadastrados.
+  const PROFESSOR_NAMES = {
+    'professor@escola.com': 'Prof. João',
+  };
 
   const loginSection = document.getElementById('loginSection');
   const dashboardSection = document.getElementById('dashboardSection');
@@ -41,8 +48,10 @@
 
     if (email === VALID_EMAIL && password === VALID_PASSWORD) {
       setLoggedIn(true);
+      localStorage.setItem(STORAGE_PROFESSOR, PROFESSOR_NAMES[email] || '');
       hideError();
       form.reset();
+      document.dispatchEvent(new Event('professor:login'));
       return;
     }
 
@@ -51,6 +60,7 @@
 
   logoutButton.addEventListener('click', () => {
     setLoggedIn(false);
+    localStorage.removeItem(STORAGE_PROFESSOR);
     hideError();
   });
 

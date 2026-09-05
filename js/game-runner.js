@@ -119,6 +119,31 @@ function finishGame() {
   `;
   progressDots.innerHTML = '';
   progressBar.style.width = '100%';
+
+  salvarPontuacao(state.score);
+}
+
+async function salvarPontuacao(pontos) {
+  const aluno = window.AlunoSession ? window.AlunoSession.getAluno() : { nome: '', turma: '' };
+
+  if (!aluno.nome || !aluno.turma) {
+    console.warn('Nome/turma do aluno não encontrados — pontuação não foi enviada ao Supabase.');
+    return;
+  }
+
+  if (!window.supabaseClient) {
+    console.warn('Supabase client não carregado — pontuação não foi enviada.');
+    return;
+  }
+
+  const { error } = await window.supabaseClient
+    .from('pontuacoes')
+    .insert([{ nome_aluno: aluno.nome, turma: aluno.turma, pontos: pontos }]);
+  // "professor" não é enviado: o trigger do banco preenche automaticamente pela turma.
+
+  if (error) {
+    console.error('Erro ao salvar pontuação no Supabase:', error.message);
+  }
 }
 
 startTimer();

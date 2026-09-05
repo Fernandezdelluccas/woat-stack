@@ -159,66 +159,29 @@
             <tr>
               <th>Aluno</th>
               <th>Turma</th>
-              <th>Níveis concluídos</th>
-              <th>Acertos</th>
-              <th>Erros</th>
-              <th>Tempo de uso</th>
+              <th>Pontos</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="alunosDesempenho">
             <tr>
-              <td class="player-cell"><span class="player-cell__avatar">🦄</span> Sofia</td>
-              <td>4º ano</td>
-              <td>12</td>
-              <td><span class="tag tag--correct">54</span></td>
-              <td><span class="tag tag--wrong">6</span></td>
-              <td>22min</td>
-            </tr>
-            <tr>
-              <td class="player-cell"><span class="player-cell__avatar">🤖</span> Pedro</td>
-              <td>4º ano</td>
-              <td>11</td>
-              <td><span class="tag tag--correct">49</span></td>
-              <td><span class="tag tag--wrong">9</span></td>
-              <td>19min</td>
-            </tr>
-            <tr>
-              <td class="player-cell"><span class="player-cell__avatar">🦊</span> Ana</td>
-              <td>3º ano</td>
-              <td>10</td>
-              <td><span class="tag tag--correct">45</span></td>
-              <td><span class="tag tag--wrong">7</span></td>
-              <td>17min</td>
-            </tr>
-            <tr>
-              <td class="player-cell"><span class="player-cell__avatar">🦕</span> Lucas</td>
-              <td>3º ano</td>
-              <td>8</td>
-              <td><span class="tag tag--correct">38</span></td>
-              <td><span class="tag tag--wrong">11</span></td>
-              <td>15min</td>
-            </tr>
-            <tr>
-              <td class="player-cell"><span class="player-cell__avatar">🐱</span> Beatriz</td>
-              <td>5º ano</td>
-              <td>7</td>
-              <td><span class="tag tag--correct">33</span></td>
-              <td><span class="tag tag--wrong">8</span></td>
-              <td>12min</td>
+              <td colspan="3" class="hint text-center">Faça login para carregar os dados.</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <p class="hint text-center" style="margin-top:16px;">
-        Dados de exemplo — este painel será conectado ao banco PostgreSQL (Supabase) para exibir dados reais.
+        Mostrando apenas as turmas sob sua responsabilidade, definidas automaticamente pelo Supabase.
       </p>
     </div>
   </main>
 
   <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/supabaseClient.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/professor-auth.js"></script>
+  <script src="js/professor-dashboard.js"></script>
 </body>
 </html>

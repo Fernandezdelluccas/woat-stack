@@ -79,5 +79,21 @@
   <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
 
   <script src="js/nav.js"></script>
+  <script src="js/aluno-session.js"></script>
+  <script>
+    document.querySelector('form').addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      const nome = document.getElementById('nome').value.trim();
+      const turma = document.getElementById('turma').value;
+
+      if (!nome || !turma) {
+        return;
+      }
+
+      window.AlunoSession.salvarAluno(nome, turma);
+      window.location.href = 'materias.html';
+    });
+  </script>
 </body>
 </html>
