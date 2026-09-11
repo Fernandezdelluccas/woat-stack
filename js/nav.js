@@ -18,7 +18,27 @@
     setupAvatarPicker();
     highlightCurrentPage();
     setupControlDock();
+    renderUserChip();
   });
+
+  function renderUserChip() {
+    const chip = document.getElementById('userChip');
+    if (!chip || !window.PerfilSession) return;
+
+    const perfil = window.PerfilSession.getPerfilAtivo();
+    if (!perfil) {
+      window.location.href = 'index.html';
+      return;
+    }
+
+    chip.innerHTML = `<span class="user-chip__avatar">${perfil.avatar}</span> ${perfil.nome}`;
+    chip.title = 'Trocar perfil';
+    chip.style.cursor = 'pointer';
+    chip.addEventListener('click', () => {
+      window.PerfilSession.trocarPerfil();
+      window.location.href = 'index.html';
+    });
+  }
 
   function setupAvatarPicker() {
     document.querySelectorAll('.avatar-picker .avatar-option').forEach((option) => {

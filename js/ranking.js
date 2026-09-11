@@ -1,15 +1,15 @@
-// Busca as pontuações no Supabase, filtradas pela turma do aluno logado,
-// e renderiza a tabela de ranking ordenada da maior para a menor pontuação.
+// Busca as pontuações no Supabase (acumuladas por aluno), filtradas pela
+// turma do perfil ativo, destaca a própria posição e atualiza em tempo real
+// via Supabase Realtime enquanto outros alunos vão respondendo.
 (function () {
   const MEDALHAS = ['🥇 1º', '🥈 2º', '🥉 3º'];
 
   async function carregarRanking() {
     const tbody = document.getElementById('rankingBody');
-    if (!tbody || !window.supabaseClient) {
-      return;
-    }
+    const chip = document.getElementById('posicaoChip');
+    if (!tbody || !window.supabaseClient) return;
 
-    const aluno = window.AlunoSession ? window.AlunoSession.getAluno() : { turma: '' };
+    const perfil = window.PerfilSession ? window.PerfilSession.getPerfilAtivo() : null;
 
     let query = window.supabaseClient
       .from('pontuacoes')
@@ -17,8 +17,8 @@
       .order('pontos', { ascending: false })
       .limit(50);
 
-    if (aluno.turma) {
-      query = query.eq('turma', aluno.turma);
+    if (perfil && perfil.serie) {
+      query = query.eq('turma', perfil.serie);
     }
 
     const { data, error } = await query;
@@ -33,25 +33,85 @@
 
     if (!data || data.length === 0) {
       tbody.innerHTML = '<tr><td colspan="4" class="hint text-center">Ainda não há pontuações nessa turma. Jogue para aparecer aqui!</td></tr>';
+      if (chip) chip.style.display = 'none';
       return;
     }
 
+    let minhaPosicao = null;
+
     data.forEach((item, index) => {
       const tr = document.createElement('tr');
-      const posLabel = MEDALHAS[index] || `${index + 1}º`;
+      const posicao = index + 1;
+      const posLabel = MEDALHAS[index] || `${posicao}º`;
       const posClass =
         index === 0 ? 'rank-pos rank-pos--gold' :
         index === 1 ? 'rank-pos rank-pos--silver' :
         index === 2 ? 'rank-pos rank-pos--bronze' : 'rank-pos';
 
+      const souEu = Boolean(perfil) && item.nome_aluno === perfil.nome && item.turma === perfil.serie;
+      if (souEu) {
+        tr.classList.add('is-me');
+        minhaPosicao = posicao;
+      }
+
       tr.innerHTML = `
         <td class="${posClass}">${posLabel}</td>
-        <td class="player-cell">${escapeHtml(item.nome_aluno)}</td>
+        <td class="player-cell">${escapeHtml(item.nome_aluno)}${souEu ? ' <span class="hint">(você)</span>' : ''}</td>
         <td>${escapeHtml(item.turma)}</td>
         <td>${item.pontos}</td>
       `;
       tbody.appendChild(tr);
     });
+
+    await atualizarChipPosicao(chip, perfil, minhaPosicao);
+  }
+
+  async function atualizarChipPosicao(chip, perfil, minhaPosicao) {
+    if (!chip || !perfil) {
+      if (chip) chip.style.display = 'none';
+      return;
+    }
+
+    if (minhaPosicao) {
+      chip.textContent = `📍 Sua posição: #${minhaPosicao}`;
+      chip.style.display = 'inline-flex';
+      return;
+    }
+
+    const { data: minhaLinha } = await window.supabaseClient
+      .from('pontuacoes')
+      .select('pontos')
+      .eq('nome_aluno', perfil.nome)
+      .eq('turma', perfil.serie)
+      .maybeSingle();
+
+    if (!minhaLinha) {
+      chip.style.display = 'none';
+      return;
+    }
+
+    const { count } = await window.supabaseClient
+      .from('pontuacoes')
+      .select('*', { count: 'exact', head: true })
+      .eq('turma', perfil.serie)
+      .gt('pontos', minhaLinha.pontos);
+
+    chip.textContent = `📍 Sua posição: #${(count || 0) + 1}`;
+    chip.style.display = 'inline-flex';
+  }
+
+  function assinarTempoReal(perfil) {
+    if (!window.supabaseClient) return;
+
+    const config = { event: '*', schema: 'public', table: 'pontuacoes' };
+    if (perfil && perfil.serie) {
+      config.filter = `turma=eq.${perfil.serie}`;
+    }
+
+    window.supabaseClient
+      .channel('ranking-tempo-real')
+      .on('postgres_changes', config, () => carregarRanking())
+      .subscribe();
   }
 
   function escapeHtml(value) {
@@ -60,5 +120,9 @@
     return div.innerHTML;
   }
 
-  document.addEventListener('DOMContentLoaded', carregarRanking);
+  document.addEventListener('DOMContentLoaded', () => {
+    const perfil = window.PerfilSession ? window.PerfilSession.getPerfilAtivo() : null;
+    carregarRanking();
+    assinarTempoReal(perfil);
+  });
 })();

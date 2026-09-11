@@ -20,9 +20,7 @@
         <a href="materias.html">Matérias</a>
         <a href="ranking.html">Ranking</a>
       </nav>
-      <div class="user-chip">
-        <span class="user-chip__avatar">🦊</span> Ana
-      </div>
+      <button type="button" class="user-chip" id="userChip" style="border:none; font:inherit; color:inherit;"></button>
     </div>
   </header>
 
@@ -31,7 +29,11 @@
       <div class="page-head">
         <span class="eyebrow">Competição amigável</span>
         <h1>Ranking de Matemática</h1>
-        <p>Continue jogando e acertando para subir de posição!</p>
+        <p>Continue jogando e acertando para subir de posição! O ranking atualiza sozinho, em tempo real.</p>
+      </div>
+
+      <div class="text-center">
+        <span class="ranking-posicao-chip" id="posicaoChip" style="display:none;"></span>
       </div>
 
       <div class="table-wrap">
@@ -62,7 +64,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="js/supabaseClient.js"></script>
-  <script src="js/aluno-session.js"></script>
+  <script src="js/perfil-session.js"></script>
   <script src="js/ranking.js"></script>
   <script src="js/nav.js"></script>
 </body>

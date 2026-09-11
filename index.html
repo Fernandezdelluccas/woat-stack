@@ -12,7 +12,7 @@
   <style>
     body { justify-content: center; }
     .login-main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 32px 16px; }
-    .login-card { width: 100%; max-width: 460px; text-align: center; }
+    .login-card { width: 100%; max-width: 520px; text-align: center; }
     .login-mark { width: 76px; height: 76px; margin: 0 auto 18px; border-radius: 24px; background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)); display: flex; align-items: center; justify-content: center; font-size: 2.2rem; box-shadow: var(--shadow-md); }
   </style>
 </head>
@@ -22,19 +22,21 @@
     <div class="card login-card">
       <div class="login-mark" aria-hidden="true">🧮</div>
       <span class="eyebrow">Bem-vindo(a)!</span>
-      <h1>G&Ecirc;NIOS DO JOGO</h1>
-      <p>Digite seu nome, escolha sua turma e um avatar para começar a jogar e aprender!</p>
+      <h1 id="tituloTela">Quem vai jogar?</h1>
+      <p id="subtituloTela">Escolha o seu perfil para continuar jogando e aprendendo!</p>
 
-      <form action="materias.html" autocomplete="off">
+      <div class="perfil-picker" id="perfilPicker" role="list" aria-label="Perfis salvos neste aparelho"></div>
+
+      <form id="cadastroForm" autocomplete="off" style="display:none;">
         <div class="field">
           <label for="nome">Como você se chama?</label>
           <input type="text" id="nome" name="nome" placeholder="Digite seu nome" required />
         </div>
 
         <div class="field">
-          <label for="turma">Qual é a sua turma?</label>
-          <select id="turma" name="turma" required>
-            <option value="" disabled selected>Selecione a sua turma</option>
+          <label for="serie">Qual é a sua série?</label>
+          <select id="serie" name="serie" required>
+            <option value="" disabled selected>Selecione a sua série</option>
             <option value="1ano">1º ano</option>
             <option value="2ano">2º ano</option>
             <option value="3ano">3º ano</option>
@@ -47,27 +49,52 @@
           <label>Escolha seu avatar</label>
           <div class="avatar-picker" role="radiogroup" aria-label="Avatar">
             <label class="avatar-option selected">
-              <input type="radio" name="avatar" value="fox" checked hidden />🦊
+              <input type="radio" name="avatar" value="🦊" checked hidden />🦊
             </label>
             <label class="avatar-option">
-              <input type="radio" name="avatar" value="cat" hidden />🐱
+              <input type="radio" name="avatar" value="🐱" hidden />🐱
             </label>
             <label class="avatar-option">
-              <input type="radio" name="avatar" value="owl" hidden />🦉
+              <input type="radio" name="avatar" value="🦉" hidden />🦉
             </label>
             <label class="avatar-option">
-              <input type="radio" name="avatar" value="dino" hidden />🦕
+              <input type="radio" name="avatar" value="🦕" hidden />🦕
             </label>
             <label class="avatar-option">
-              <input type="radio" name="avatar" value="unicorn" hidden />🦄
+              <input type="radio" name="avatar" value="🦄" hidden />🦄
             </label>
             <label class="avatar-option">
-              <input type="radio" name="avatar" value="robot" hidden />🤖
+              <input type="radio" name="avatar" value="🤖" hidden />🤖
+            </label>
+            <label class="avatar-option">
+              <input type="radio" name="avatar" value="🐶" hidden />🐶
+            </label>
+            <label class="avatar-option">
+              <input type="radio" name="avatar" value="🐰" hidden />🐰
+            </label>
+            <label class="avatar-option">
+              <input type="radio" name="avatar" value="🐼" hidden />🐼
+            </label>
+            <label class="avatar-option">
+              <input type="radio" name="avatar" value="🦁" hidden />🦁
+            </label>
+            <label class="avatar-option">
+              <input type="radio" name="avatar" value="🐸" hidden />🐸
+            </label>
+            <label class="avatar-option">
+              <input type="radio" name="avatar" value="🐢" hidden />🐢
+            </label>
+            <label class="avatar-option">
+              <input type="radio" name="avatar" value="🦋" hidden />🦋
+            </label>
+            <label class="avatar-option">
+              <input type="radio" name="avatar" value="🐧" hidden />🐧
             </label>
           </div>
         </div>
 
         <button type="submit" class="btn btn--primary btn--block">Entrar e jogar 🚀</button>
+        <button type="button" id="cancelarCadastro" class="btn btn--ghost btn--block" style="margin-top:10px; display:none;">Voltar aos perfis</button>
       </form>
 
       <p class="hint" style="margin-top:18px;">
@@ -79,21 +106,99 @@
   <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
 
   <script src="js/nav.js"></script>
-  <script src="js/aluno-session.js"></script>
+  <script src="js/perfil-session.js"></script>
   <script>
-    document.querySelector('form').addEventListener('submit', function (event) {
+    const titulo = document.getElementById('tituloTela');
+    const subtitulo = document.getElementById('subtituloTela');
+    const picker = document.getElementById('perfilPicker');
+    const form = document.getElementById('cadastroForm');
+    const cancelarBtn = document.getElementById('cancelarCadastro');
+
+    function irParaJogo() {
+      window.location.href = 'materias.html';
+    }
+
+    function mostrarForm(temPerfis) {
+      picker.style.display = 'none';
+      form.style.display = 'block';
+      cancelarBtn.style.display = temPerfis ? 'inline-flex' : 'none';
+      titulo.textContent = 'Criar novo perfil';
+      subtitulo.textContent = 'Digite seu nome, escolha sua série e um avatar para começar a jogar!';
+    }
+
+    function mostrarPicker() {
+      form.style.display = 'none';
+      picker.style.display = 'grid';
+      titulo.textContent = 'Quem vai jogar?';
+      subtitulo.textContent = 'Escolha o seu perfil para continuar jogando e aprendendo!';
+      renderizarPerfis();
+    }
+
+    function renderizarPerfis() {
+      const perfis = window.PerfilSession.listarPerfis();
+      picker.innerHTML = '';
+
+      const serieLabel = {
+        '1ano': '1º ano', '2ano': '2º ano', '3ano': '3º ano', '4ano': '4º ano', '5ano': '5º ano',
+      };
+
+      perfis.forEach((perfil) => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'perfil-card';
+        card.setAttribute('role', 'listitem');
+        card.innerHTML = `
+          <span class="perfil-card__avatar">${perfil.avatar}</span>
+          <span class="perfil-card__nome">${escapeHtml(perfil.nome)}</span>
+          <span class="perfil-card__serie">${serieLabel[perfil.serie] || perfil.serie}</span>
+        `;
+        card.addEventListener('click', () => {
+          window.PerfilSession.selecionarPerfil(perfil.nome, perfil.serie);
+          irParaJogo();
+        });
+        picker.appendChild(card);
+      });
+
+      const novoCard = document.createElement('button');
+      novoCard.type = 'button';
+      novoCard.className = 'perfil-card perfil-card--novo';
+      novoCard.innerHTML = `
+        <span class="perfil-card__avatar">➕</span>
+        <span class="perfil-card__nome">Criar perfil</span>
+      `;
+      novoCard.addEventListener('click', () => mostrarForm(perfis.length > 0));
+      picker.appendChild(novoCard);
+
+      if (perfis.length === 0) {
+        mostrarForm(false);
+      }
+    }
+
+    function escapeHtml(value) {
+      const div = document.createElement('div');
+      div.textContent = value;
+      return div.innerHTML;
+    }
+
+    cancelarBtn.addEventListener('click', mostrarPicker);
+
+    form.addEventListener('submit', function (event) {
       event.preventDefault();
 
       const nome = document.getElementById('nome').value.trim();
-      const turma = document.getElementById('turma').value;
+      const serie = document.getElementById('serie').value;
+      const avatarInput = form.querySelector('input[name="avatar"]:checked');
+      const avatar = avatarInput ? avatarInput.value : '🦊';
 
-      if (!nome || !turma) {
+      if (!nome || !serie) {
         return;
       }
 
-      window.AlunoSession.salvarAluno(nome, turma);
-      window.location.href = 'materias.html';
+      window.PerfilSession.criarPerfil({ nome, serie, avatar });
+      irParaJogo();
     });
+
+    renderizarPerfis();
   </script>
 </body>
 </html>

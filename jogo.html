@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>G&Ecirc;NIOS DO JOGO — Jogo de Adição</title>
+  <title>G&Ecirc;NIOS DO JOGO — Jogar</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
@@ -20,34 +20,49 @@
         <a href="materias.html">Matérias</a>
         <a href="ranking.html">Ranking</a>
       </nav>
-      <div class="user-chip">
-        <span class="user-chip__avatar">🦊</span> Ana
-      </div>
+      <button type="button" class="user-chip" id="userChip" style="border:none; font:inherit; color:inherit;"></button>
     </div>
   </header>
 
   <main class="main">
     <div class="container game-shell">
-      <a href="matematica.html" class="hint" style="display:inline-block; margin-bottom:18px;">← Sair do jogo</a>
+      <a href="matematica.html" class="hint" style="display:inline-block; margin-bottom:18px;">← Sair da fase</a>
 
       <div class="game-hud">
         <div class="game-hud__item">⭐ <span id="score">0 pts</span></div>
         <div class="game-hud__item">✅ <span id="acertos">0 acertos</span></div>
         <div class="game-hud__item">❌ <span id="erros">0 erros</span></div>
-        <div class="game-hud__item">⏱️ <span id="tempo">00:00</span></div>
+        <div class="game-hud__item">🧗 <span id="nivelAtual">Nível 1 de 20</span></div>
       </div>
 
       <div class="progress-bar" style="margin-bottom:24px;">
         <div class="progress-bar__fill" id="progressBar" style="width: 0%;"></div>
       </div>
 
-      <div class="card question-card">
-        <span class="eyebrow" id="questionMeta">Pergunta 1 de 10 · Adição</span>
+      <div class="card question-card" id="jogoArea" style="position: relative;">
+        <span class="eyebrow" id="questionMeta">Carregando...</span>
         <div class="question-card__prompt" id="questionPrompt">Carregando...</div>
 
         <div class="options-grid" id="optionsGrid"></div>
 
+        <p class="feedback-text" id="feedbackText" style="display:none;"></p>
+
         <div class="progress-dots" id="progressDots"></div>
+
+        <div class="star-burst" id="starBurst" aria-hidden="true"></div>
+      </div>
+
+      <div class="card" id="resumeCard" style="display:none; text-align:center;">
+        <h3 style="margin-top:0;">Encontramos um jogo salvo! 🔖</h3>
+        <p>Você parou no meio deste nível. Quer continuar de onde parou?</p>
+        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+          <button type="button" class="btn btn--primary" id="continuarBtn">Continuar de onde parei</button>
+          <button type="button" class="btn btn--ghost" id="recomecarBtn">Recomeçar nível</button>
+        </div>
+      </div>
+
+      <div class="card text-center" id="finalCard" style="display:none;">
+        <div id="finalConteudo"></div>
       </div>
     </div>
   </main>
@@ -56,7 +71,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="js/supabaseClient.js"></script>
-  <script src="js/aluno-session.js"></script>
+  <script src="js/perfil-session.js"></script>
   <script type="module" src="js/game-runner.js"></script>
   <script src="js/nav.js"></script>
 </body>

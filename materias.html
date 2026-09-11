@@ -21,16 +21,14 @@
         <a href="ranking.html">Ranking</a>
       </nav>
       <a href="professor.html" class="btn btn--ghost" style="padding: 8px 14px; font-size: 0.78rem; border-radius: 999px;">Área do professor</a>
-      <div class="user-chip">
-        <span class="user-chip__avatar">🦊</span> Ana
-      </div>
+      <button type="button" class="user-chip" id="userChip" style="border:none; font:inherit; color:inherit;"></button>
     </div>
   </header>
 
   <main class="main">
     <div class="container">
       <div class="page-head">
-        <span class="eyebrow">Olá, Ana! 👋</span>
+        <span class="eyebrow" id="saudacao">Olá! 👋</span>
         <h1>O que vamos estudar hoje?</h1>
         <p>Escolha uma matéria para começar a jogar.</p>
       </div>
@@ -48,6 +46,15 @@
 
   <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
 
+  <script src="js/perfil-session.js"></script>
   <script src="js/nav.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const perfil = window.PerfilSession && window.PerfilSession.getPerfilAtivo();
+      if (perfil) {
+        document.getElementById('saudacao').textContent = `Olá, ${perfil.nome}! 👋`;
+      }
+    });
+  </script>
 </body>
 </html>

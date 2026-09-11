@@ -40,6 +40,11 @@
     errorText.style.display = 'none';
   }
 
+  function atualizarChipProfessor(nome) {
+    const chipNome = document.getElementById('userChipProfessorNome');
+    if (chipNome) chipNome.textContent = nome;
+  }
+
   form.addEventListener('submit', (event) => {
     event.preventDefault();
 
@@ -47,8 +52,10 @@
     const password = passwordInput.value.trim();
 
     if (email === VALID_EMAIL && password === VALID_PASSWORD) {
+      const nomeProfessor = PROFESSOR_NAMES[email] || 'Professor(a)';
       setLoggedIn(true);
-      localStorage.setItem(STORAGE_PROFESSOR, PROFESSOR_NAMES[email] || '');
+      localStorage.setItem(STORAGE_PROFESSOR, nomeProfessor);
+      atualizarChipProfessor(nomeProfessor);
       hideError();
       form.reset();
       document.dispatchEvent(new Event('professor:login'));
@@ -65,4 +72,7 @@
   });
 
   setLoggedIn(isLoggedIn());
+  if (isLoggedIn()) {
+    atualizarChipProfessor(localStorage.getItem(STORAGE_PROFESSOR) || 'Professor(a)');
+  }
 })();

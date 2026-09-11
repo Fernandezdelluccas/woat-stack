@@ -20,8 +20,8 @@
         <a href="materias.html">Matérias</a>
         <a href="ranking.html">Ranking</a>
       </nav>
-      <div class="user-chip">
-        <span class="user-chip__avatar">👩‍🏫</span> Prof. João
+      <div class="user-chip" id="userChipProfessor">
+        <span class="user-chip__avatar">👩‍🏫</span> <span id="userChipProfessorNome">Professor(a)</span>
       </div>
     </div>
   </header>
@@ -152,6 +152,7 @@
 
       <div class="card--flat" style="margin-bottom: 12px;">
         <h3 class="mt-0">Desempenho por aluno</h3>
+        <p class="hint mt-0" style="margin-bottom:0;">Clique numa linha para ver o desempenho do aluno fase por fase.</p>
       </div>
       <div class="table-wrap">
         <table>
@@ -160,11 +161,14 @@
               <th>Aluno</th>
               <th>Turma</th>
               <th>Pontos</th>
+              <th>Acertos</th>
+              <th>Erros</th>
+              <th>% acerto</th>
             </tr>
           </thead>
           <tbody id="alunosDesempenho">
             <tr>
-              <td colspan="3" class="hint text-center">Faça login para carregar os dados.</td>
+              <td colspan="6" class="hint text-center">Faça login para carregar os dados.</td>
             </tr>
           </tbody>
         </table>
