@@ -20,8 +20,8 @@
         <a href="materias.html">Matérias</a>
         <a href="ranking.html">Ranking</a>
       </nav>
-      <div class="user-chip" id="userChipProfessor">
-        <span class="user-chip__avatar">👩‍🏫</span> <span id="userChipProfessorNome">Professor(a)</span>
+      <div class="user-chip">
+        <span class="user-chip__avatar">👩‍🏫</span> Prof. João
       </div>
     </div>
   </header>
@@ -84,6 +84,35 @@
           <div class="stat-card__value">14min</div>
           <div class="stat-card__delta stat-card__delta--down">▼ 2min vs. semana passada</div>
         </div>
+      </div>
+
+      <div class="card challenge-card">
+        <span class="eyebrow">Sistema de desafios</span>
+        <h3>Defina uma missão para a turma</h3>
+        <p class="hint">O desafio fica salvo neste dispositivo e pode ser conectado ao Supabase depois.</p>
+        <form id="challengeForm" class="challenge-form">
+          <div class="field">
+            <label for="challengeTitle">Nome do desafio</label>
+            <input id="challengeTitle" placeholder="Ex.: Missão das tabuadas" required />
+          </div>
+          <div class="field">
+            <label for="challengeGame">Minijogo</label>
+            <select id="challengeGame">
+              <option value="adicao">Adição</option>
+              <option value="subtracao">Subtração</option>
+              <option value="multiplicacao">Multiplicação</option>
+              <option value="divisao">Divisão</option>
+              <option value="formas">Formas geométricas</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="challengeTarget">Perguntas</label>
+            <input id="challengeTarget" type="number" min="1" max="20" value="5" required />
+          </div>
+          <button class="btn btn--primary" type="submit">Criar desafio</button>
+        </form>
+        <p class="challenge-feedback" id="challengeFeedback" aria-live="polite"></p>
+        <div class="challenge-list" id="challengeList"></div>
       </div>
 
       <div class="grid" style="grid-template-columns: 2fr 1fr; margin-bottom: 28px;">
@@ -152,7 +181,6 @@
 
       <div class="card--flat" style="margin-bottom: 12px;">
         <h3 class="mt-0">Desempenho por aluno</h3>
-        <p class="hint mt-0" style="margin-bottom:0;">Clique numa linha para ver o desempenho do aluno fase por fase.</p>
       </div>
       <div class="table-wrap">
         <table>
@@ -160,32 +188,91 @@
             <tr>
               <th>Aluno</th>
               <th>Turma</th>
-              <th>Pontos</th>
+              <th>Níveis concluídos</th>
               <th>Acertos</th>
               <th>Erros</th>
-              <th>% acerto</th>
+              <th>Tempo de uso</th>
             </tr>
           </thead>
-          <tbody id="alunosDesempenho">
+          <tbody>
             <tr>
-              <td colspan="6" class="hint text-center">Faça login para carregar os dados.</td>
+              <td class="player-cell"><span class="player-cell__avatar">🦄</span> Sofia</td>
+              <td>4º ano</td>
+              <td>12</td>
+              <td><span class="tag tag--correct">54</span></td>
+              <td><span class="tag tag--wrong">6</span></td>
+              <td>22min</td>
+            </tr>
+            <tr>
+              <td class="player-cell"><span class="player-cell__avatar">🤖</span> Pedro</td>
+              <td>4º ano</td>
+              <td>11</td>
+              <td><span class="tag tag--correct">49</span></td>
+              <td><span class="tag tag--wrong">9</span></td>
+              <td>19min</td>
+            </tr>
+            <tr>
+              <td class="player-cell"><span class="player-cell__avatar">🦊</span> Ana</td>
+              <td>3º ano</td>
+              <td>10</td>
+              <td><span class="tag tag--correct">45</span></td>
+              <td><span class="tag tag--wrong">7</span></td>
+              <td>17min</td>
+            </tr>
+            <tr>
+              <td class="player-cell"><span class="player-cell__avatar">🦕</span> Lucas</td>
+              <td>3º ano</td>
+              <td>8</td>
+              <td><span class="tag tag--correct">38</span></td>
+              <td><span class="tag tag--wrong">11</span></td>
+              <td>15min</td>
+            </tr>
+            <tr>
+              <td class="player-cell"><span class="player-cell__avatar">🐱</span> Beatriz</td>
+              <td>5º ano</td>
+              <td>7</td>
+              <td><span class="tag tag--correct">33</span></td>
+              <td><span class="tag tag--wrong">8</span></td>
+              <td>12min</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <p class="hint text-center" style="margin-top:16px;">
-        Mostrando apenas as turmas sob sua responsabilidade, definidas automaticamente pelo Supabase.
+        Dados de exemplo — este painel será conectado ao banco PostgreSQL (Supabase) para exibir dados reais.
       </p>
     </div>
   </main>
 
   <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="js/supabaseClient.js"></script>
   <script src="js/nav.js"></script>
+  <script src="js/app-state.js?v=4"></script>
   <script src="js/professor-auth.js"></script>
-  <script src="js/professor-dashboard.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('challengeForm');
+      const list = document.getElementById('challengeList');
+      const feedback = document.getElementById('challengeFeedback');
+      if (!form || !window.GeniosApp) return;
+      const renderChallenges = () => {
+        list.innerHTML = window.GeniosApp.getChallenges().map((challenge) => `
+          <div class="challenge-item"><strong>${challenge.title}</strong><span>${challenge.game} · ${challenge.target} perguntas</span></div>
+        `).join('') || '<span class="hint">Nenhum desafio criado ainda.</span>';
+      };
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const result = window.GeniosApp.createChallenge({
+          title: document.getElementById('challengeTitle').value,
+          game: document.getElementById('challengeGame').value,
+          target: document.getElementById('challengeTarget').value,
+        });
+        feedback.textContent = result.ok ? 'Desafio criado com sucesso.' : result.message;
+        if (result.ok) { form.reset(); renderChallenges(); }
+      });
+      renderChallenges();
+    });
+  </script>
 </body>
 </html>

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=7" />
 </head>
 <body>
 
@@ -21,16 +21,19 @@
         <a href="ranking.html">Ranking</a>
       </nav>
       <a href="professor.html" class="btn btn--ghost" style="padding: 8px 14px; font-size: 0.78rem; border-radius: 999px;">Área do professor</a>
-      <button type="button" class="user-chip" id="userChip" style="border:none; font:inherit; color:inherit;"></button>
+      <div class="user-chip">
+        <span class="user-chip__avatar">🦊</span> Ana
+      </div>
     </div>
   </header>
 
   <main class="main">
     <div class="container">
       <div class="page-head">
-        <span class="eyebrow" id="saudacao">Olá! 👋</span>
+        <span class="eyebrow" id="welcomeLabel">Olá! 👋</span>
         <h1>O que vamos estudar hoje?</h1>
         <p>Escolha uma matéria para começar a jogar.</p>
+        <a href="jogo.html?game=adicao&tutorial=manual" class="btn btn--ghost" style="display:inline-flex; margin-top:14px;">📘 Como jogar</a>
       </div>
 
       <div class="grid grid--single">
@@ -41,19 +44,165 @@
           <p class="tile__desc">Adição, subtração, multiplicação, divisão e muito mais.</p>
         </a>
       </div>
+
+      <section class="avatar-studio" id="avatar-store" aria-labelledby="studioTitle">
+        <div class="avatar-studio__intro">
+          <span class="eyebrow">CRUZEIRO DO SUL · ANÁLIA FRANCO I</span>
+          <h2 id="studioTitle">Personalize seu pet</h2>
+          <p>Escolha uma cabeça, um estilo e acessórios para seu companheiro.</p>
+        </div>
+        <div class="avatar-studio__layout">
+          <div class="character-preview" aria-label="Prévia do personagem">
+            <div class="studio-pet-bubble" id="studioPetBubble" aria-live="polite">ESCOLHA UM ESTILO PARA EU EXPERIMENTAR!</div>
+            <span class="character-preview__spark character-preview__spark--one">✦</span>
+            <span class="character-preview__spark character-preview__spark--two">✧</span>
+            <div class="character-preview__stage">
+              <div class="character-preview__layer character-preview__base" id="characterBase">🦊</div>
+              <div class="character-preview__layer character-preview__hair" id="characterHair"></div>
+              <div class="character-preview__layer character-preview__accessory" id="characterAccessory"></div>
+            </div>
+            <strong id="characterName">Meu personagem</strong>
+            <div class="user-chip character-coins" id="coinsBadge"><img class="school-logo school-logo--mini" src="assets/logo-cruzeiro-do-sul-estrela-512.webp" alt="Cruzeiro do Sul" /> 0</div>
+          </div>
+          <div class="avatar-studio__shop">
+            <div class="shop-tabs" role="tablist" aria-label="Categorias da loja">
+              <button type="button" class="shop-tab is-active" data-category="personagem">Personagem</button>
+              <button type="button" class="shop-tab" data-category="cabelo">Cabelo</button>
+              <button type="button" class="shop-tab" data-category="acessório">Acessórios</button>
+            </div>
+            <div class="shop-grid" id="cosmeticsGrid"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="achievements-panel" aria-labelledby="achievementsTitle">
+        <div>
+          <span class="eyebrow">Suas conquistas</span>
+          <h2 id="achievementsTitle">Colecione medalhas jogando</h2>
+        </div>
+        <div class="achievement-grid" id="achievementGrid"></div>
+      </section>
     </div>
   </main>
 
-  <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
+  <footer class="footer">G&Ecirc;NIOS DO JOGO · CRUZEIRO DO SUL · ANÁLIA FRANCO I</footer>
 
-  <script src="js/perfil-session.js"></script>
+  <script src="js/app-state.js?v=4"></script>
   <script src="js/nav.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      const perfil = window.PerfilSession && window.PerfilSession.getPerfilAtivo();
-      if (perfil) {
-        document.getElementById('saudacao').textContent = `Olá, ${perfil.nome}! 👋`;
+      const player = window.GeniosApp?.getPlayer?.();
+      const userChip = document.querySelector('.user-chip');
+      const welcomeLabel = document.getElementById('welcomeLabel');
+      if (userChip && player) {
+        userChip.innerHTML = `<span class="user-chip__avatar">${player.avatar || '🦊'}</span> ${player.nome}`;
       }
+      if (welcomeLabel && player) {
+        welcomeLabel.textContent = `Olá, ${player.nome}! 👋`;
+      }
+
+      const coinsBadge = document.getElementById('coinsBadge');
+      const cosmeticsGrid = document.getElementById('cosmeticsGrid');
+      const characterBase = document.getElementById('characterBase');
+      const characterHair = document.getElementById('characterHair');
+      const characterAccessory = document.getElementById('characterAccessory');
+      const characterName = document.getElementById('characterName');
+      const studioPetBubble = document.getElementById('studioPetBubble');
+      const achievementGrid = document.getElementById('achievementGrid');
+      let activeCategory = 'personagem';
+
+      const findItem = (id) => (window.GeniosApp.characterCatalog || []).find((item) => item.id === id);
+
+      const renderCharacter = () => {
+        const look = window.GeniosApp.getEquippedCharacter();
+        const base = findItem(look.base);
+        const hair = findItem(look.hair);
+        const accessory = findItem(look.accessory);
+        characterBase.textContent = base?.emoji || '🦊';
+        characterHair.textContent = hair?.emoji || '';
+        characterAccessory.textContent = accessory?.emoji || '';
+        characterName.textContent = `${player?.nome || 'Meu'} estiloso(a)`;
+      };
+
+      const renderAchievements = () => {
+        const unlocked = window.GeniosApp.getAchievements?.() || [];
+        achievementGrid.innerHTML = (window.GeniosApp.achievementCatalog || []).map((item) => `
+          <article class="achievement ${unlocked.includes(item.id) ? 'is-unlocked' : ''}">
+            <span class="achievement__emoji">${item.id === 'coin-collector' ? '<img class="school-logo school-logo--achievement" src="assets/logo-cruzeiro-do-sul-estrela-512.webp" alt="Cruzeiro do Sul" />' : item.emoji}</span>
+            <strong>${item.title}</strong>
+            <small>${item.description}</small>
+          </article>
+        `).join('');
+      };
+
+      const reactToEquip = (item) => {
+        if (!studioPetBubble) return;
+        const phrases = {
+          personagem: `Uau! Agora eu sou ${item.label.toUpperCase()}!`,
+          cabelo: `Olha meu novo estilo: ${item.label.toUpperCase()}!`,
+          acessório: `Esse ${item.label.toUpperCase()} combinou comigo!`,
+        };
+        studioPetBubble.textContent = phrases[item.category] || 'EU AMEI MEU NOVO VISUAL!';
+        studioPetBubble.classList.remove('is-reacting');
+        void studioPetBubble.offsetWidth;
+        studioPetBubble.classList.add('is-reacting');
+        document.querySelector('.character-preview__stage')?.classList.add('is-reacting');
+        window.setTimeout(() => document.querySelector('.character-preview__stage')?.classList.remove('is-reacting'), 700);
+      };
+
+      const renderShop = () => {
+        const items = (window.GeniosApp.characterCatalog || []).filter((item) => item.category === activeCategory);
+        const unlocked = window.GeniosApp.getCharacterUnlocks?.() || [];
+        const look = window.GeniosApp.getEquippedCharacter?.() || {};
+        const playerData = window.GeniosApp.getPlayer?.() || { coins: 0 };
+        const coins = Number(playerData.coins || 0);
+        if (coinsBadge) {
+          coinsBadge.innerHTML = `<img class="school-logo school-logo--mini" src="assets/logo-cruzeiro-do-sul-estrela-512.webp" alt="Cruzeiro do Sul" /> ${coins}`;
+        }
+
+        if (cosmeticsGrid) {
+          cosmeticsGrid.innerHTML = items.map((item) => {
+            const owned = unlocked.includes(item.id);
+            const selectedClass = look[item.slot] === item.id ? 'selected' : '';
+            return `
+              <button type="button" class="shop-item ${selectedClass}" data-character-id="${item.id}">
+                <span class="shop-item__emoji">${item.emoji || '—'}</span>
+                <strong>${item.label}</strong>
+                <span class="shop-item__price">${owned ? 'Liberado' : `<img class="school-logo school-logo--tiny" src="assets/logo-cruzeiro-do-sul-estrela-512.webp" alt="Cruzeiro do Sul" /> ${item.price}`}</span>
+              </button>
+            `;
+          }).join('');
+
+          cosmeticsGrid.querySelectorAll('[data-character-id]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const id = btn.getAttribute('data-character-id');
+              const result = unlocked.includes(id)
+                ? { ok: true }
+                : window.GeniosApp.buyCharacterItem?.(id);
+              if (!result || !result.ok) {
+                window.alert(result?.message || 'Não foi possível comprar esse item.');
+                return;
+              }
+              window.GeniosApp.equipCharacterItem(id);
+              reactToEquip(window.GeniosApp.characterCatalog.find((item) => item.id === id));
+              renderCharacter();
+              renderShop();
+            });
+          });
+        }
+      };
+
+      document.querySelectorAll('.shop-tab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+          activeCategory = tab.dataset.category;
+          document.querySelectorAll('.shop-tab').forEach((item) => item.classList.toggle('is-active', item === tab));
+          renderShop();
+        });
+      });
+
+      renderCharacter();
+      renderShop();
+      renderAchievements();
     });
   </script>
 </body>

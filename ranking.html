@@ -20,7 +20,9 @@
         <a href="materias.html">Matérias</a>
         <a href="ranking.html">Ranking</a>
       </nav>
-      <button type="button" class="user-chip" id="userChip" style="border:none; font:inherit; color:inherit;"></button>
+      <div class="user-chip">
+        <span class="user-chip__avatar">🦊</span> Ana
+      </div>
     </div>
   </header>
 
@@ -29,11 +31,7 @@
       <div class="page-head">
         <span class="eyebrow">Competição amigável</span>
         <h1>Ranking de Matemática</h1>
-        <p>Continue jogando e acertando para subir de posição! O ranking atualiza sozinho, em tempo real.</p>
-      </div>
-
-      <div class="text-center">
-        <span class="ranking-posicao-chip" id="posicaoChip" style="display:none;"></span>
+        <p>Continue jogando e acertando para subir de posição!</p>
       </div>
 
       <div class="table-wrap">
@@ -46,26 +44,85 @@
               <th>Pontos</th>
             </tr>
           </thead>
-          <tbody id="rankingBody">
+          <tbody>
             <tr>
-              <td colspan="4" class="hint text-center">Carregando ranking...</td>
+              <td class="rank-pos rank-pos--gold">🥇 1º</td>
+              <td class="player-cell"><span class="player-cell__avatar">🦄</span> Sofia</td>
+              <td>4º ano</td>
+              <td>980</td>
+            </tr>
+            <tr>
+              <td class="rank-pos rank-pos--silver">🥈 2º</td>
+              <td class="player-cell"><span class="player-cell__avatar">🤖</span> Pedro</td>
+              <td>4º ano</td>
+              <td>915</td>
+            </tr>
+            <tr>
+              <td class="rank-pos rank-pos--bronze">🥉 3º</td>
+              <td class="player-cell"><span class="player-cell__avatar">🦊</span> Ana</td>
+              <td>3º ano</td>
+              <td>870</td>
+            </tr>
+            <tr>
+              <td class="rank-pos">4º</td>
+              <td class="player-cell"><span class="player-cell__avatar">🦕</span> Lucas</td>
+              <td>3º ano</td>
+              <td>760</td>
+            </tr>
+            <tr>
+              <td class="rank-pos">5º</td>
+              <td class="player-cell"><span class="player-cell__avatar">🐱</span> Beatriz</td>
+              <td>5º ano</td>
+              <td>705</td>
+            </tr>
+            <tr>
+              <td class="rank-pos">6º</td>
+              <td class="player-cell"><span class="player-cell__avatar">🦉</span> Enzo</td>
+              <td>2º ano</td>
+              <td>640</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <p class="hint text-center" style="margin-top:16px;">
-        O ranking mostra apenas a sua turma. Jogue para ganhar pontos e subir de posição!
+        Dados de exemplo — o cálculo de pontuação em tempo real será conectado ao módulo de lógica do back-end.
       </p>
     </div>
   </main>
 
   <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="js/supabaseClient.js"></script>
-  <script src="js/perfil-session.js"></script>
-  <script src="js/ranking.js"></script>
+  <script src="js/app-state.js?v=4"></script>
   <script src="js/nav.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const player = window.GeniosApp?.getPlayer?.();
+      const userChip = document.querySelector('.user-chip');
+      if (userChip && player) {
+        userChip.innerHTML = `<span class="user-chip__avatar">${player.avatar || '🦊'}</span> ${player.nome}`;
+      }
+
+      const rankingBody = document.querySelector('.ranking-table tbody');
+      if (!rankingBody) return;
+
+      const ranking = window.GeniosApp.getRanking();
+      rankingBody.innerHTML = '';
+
+      ranking.forEach((playerItem, index) => {
+        const row = document.createElement('tr');
+        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}º`;
+        const medalClass = index === 0 ? 'rank-pos rank-pos--gold' : index === 1 ? 'rank-pos rank-pos--silver' : index === 2 ? 'rank-pos rank-pos--bronze' : 'rank-pos';
+
+        row.innerHTML = `
+          <td class="${medalClass}">${medal}</td>
+          <td class="player-cell"><span class="player-cell__avatar">${playerItem.avatar || '🦊'}</span> ${playerItem.name}</td>
+          <td>${playerItem.turma || '4º ano'}</td>
+          <td>${playerItem.points || 0}</td>
+        `;
+        rankingBody.appendChild(row);
+      });
+    });
+  </script>
 </body>
 </html>

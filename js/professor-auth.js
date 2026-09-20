@@ -1,14 +1,6 @@
 (function () {
-  const STORAGE_KEY = 'genios-professor-auth';
-  const STORAGE_PROFESSOR = 'genios-professor-nome';
   const VALID_EMAIL = 'professor@escola.com';
   const VALID_PASSWORD = '123456';
-
-  // Mapeia o e-mail de login para o nome do professor gravado em "turmas.professor"
-  // no Supabase. Adicione novos professores aqui conforme forem cadastrados.
-  const PROFESSOR_NAMES = {
-    'professor@escola.com': 'Prof. João',
-  };
 
   const loginSection = document.getElementById('loginSection');
   const dashboardSection = document.getElementById('dashboardSection');
@@ -23,13 +15,20 @@
   }
 
   function setLoggedIn(value) {
-    localStorage.setItem(STORAGE_KEY, value ? 'true' : 'false');
+    if (window.GeniosApp) {
+      window.GeniosApp.setTeacherSession(value);
+    } else {
+      localStorage.setItem('genios-professor-auth', value ? 'true' : 'false');
+    }
     loginSection.style.display = value ? 'none' : 'block';
     dashboardSection.style.display = value ? 'block' : 'none';
   }
 
   function isLoggedIn() {
-    return localStorage.getItem(STORAGE_KEY) === 'true';
+    if (window.GeniosApp && typeof window.GeniosApp.isTeacherLoggedIn === 'function') {
+      return window.GeniosApp.isTeacherLoggedIn();
+    }
+    return localStorage.getItem('genios-professor-auth') === 'true';
   }
 
   function showError() {
@@ -40,11 +39,6 @@
     errorText.style.display = 'none';
   }
 
-  function atualizarChipProfessor(nome) {
-    const chipNome = document.getElementById('userChipProfessorNome');
-    if (chipNome) chipNome.textContent = nome;
-  }
-
   form.addEventListener('submit', (event) => {
     event.preventDefault();
 
@@ -52,13 +46,9 @@
     const password = passwordInput.value.trim();
 
     if (email === VALID_EMAIL && password === VALID_PASSWORD) {
-      const nomeProfessor = PROFESSOR_NAMES[email] || 'Professor(a)';
       setLoggedIn(true);
-      localStorage.setItem(STORAGE_PROFESSOR, nomeProfessor);
-      atualizarChipProfessor(nomeProfessor);
       hideError();
       form.reset();
-      document.dispatchEvent(new Event('professor:login'));
       return;
     }
 
@@ -67,12 +57,8 @@
 
   logoutButton.addEventListener('click', () => {
     setLoggedIn(false);
-    localStorage.removeItem(STORAGE_PROFESSOR);
     hideError();
   });
 
   setLoggedIn(isLoggedIn());
-  if (isLoggedIn()) {
-    atualizarChipProfessor(localStorage.getItem(STORAGE_PROFESSOR) || 'Professor(a)');
-  }
 })();
