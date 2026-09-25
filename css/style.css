@@ -464,7 +464,7 @@ select:focus-visible {
   border-radius: 50%;
   border: none;
   background: transparent;
-  font-size: 18rem;
+  font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -474,6 +474,13 @@ select:focus-visible {
   animation: petFloat 2.9s ease-in-out infinite;
   animation-delay: var(--pet-delay, 0s);
   filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.18));
+}
+
+.avatar-option__emoji {
+  display: block;
+  font-size: 5rem;
+  line-height: 1;
+  transform: translateY(-2px);
 }
 
 .avatar-option:nth-child(2) { --pet-delay: 0.2s; }
