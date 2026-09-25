@@ -471,6 +471,8 @@ select:focus-visible {
   line-height: 1;
   cursor: pointer;
   transition: transform 0.2s ease, filter 0.2s ease, opacity 0.2s ease;
+  transform-origin: center;
+  will-change: transform;
   filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.18));
 }
 
@@ -478,8 +480,7 @@ select:focus-visible {
   display: block;
   font-size: 5rem;
   line-height: 1;
-  transform: translateY(-2px);
-  animation: petFloat 2.9s ease-in-out infinite;
+  animation: petFloat 2.4s ease-in-out infinite;
   animation-delay: var(--pet-delay, 0s);
   filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.16));
   transition: filter 0.2s ease;
@@ -492,8 +493,8 @@ select:focus-visible {
 .avatar-option:nth-child(6) { --pet-delay: 1s; }
 
 .avatar-option:hover {
-  animation: petReact 0.55s ease-in-out infinite alternate;
-  filter: drop-shadow(0 16px 18px rgba(34, 211, 238, 0.32));
+  animation: petReact 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) infinite alternate;
+  filter: drop-shadow(0 16px 18px rgba(34, 211, 238, 0.4));
 }
 
 .avatar-option:hover .avatar-option__emoji {
@@ -505,22 +506,22 @@ select:focus-visible {
   filter: drop-shadow(0 0 14px rgba(139, 92, 246, 0.6));
 }
 
+.avatar-option.selected .avatar-option__emoji {
+  filter: drop-shadow(0 0 16px rgba(139, 92, 246, 0.65));
+}
+
 .avatar-option.selected:hover {
-  animation: petReact 0.55s ease-in-out infinite alternate;
+  animation: petReact 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) infinite alternate;
 }
 
 @keyframes petFloat {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
+  0%, 100% { transform: translateY(0) rotate(-2deg) scale(1); }
+  50% { transform: translateY(-10px) rotate(2deg) scale(1.03); }
 }
 
 @keyframes petReact {
-  from { transform: translateY(-2px) rotate(-5deg) scale(1.08); }
-  to { transform: translateY(-9px) rotate(5deg) scale(1.16); }
+  from { transform: translateY(-2px) rotate(-6deg) scale(1.08); }
+  to { transform: translateY(-10px) rotate(6deg) scale(1.16); }
 }
 
 @keyframes petGlow {
@@ -1997,6 +1998,16 @@ tbody tr:hover {
   .game-companion__avatar {
     animation: companionFloat 2.6s ease-in-out infinite !important;
     animation-iteration-count: infinite !important;
+  }
+
+  .avatar-option,
+  .avatar-option__emoji {
+    animation: none !important;
+  }
+
+  .avatar-option:hover,
+  .avatar-option.selected:hover {
+    transform: translateY(-5px) scale(1.08) rotate(-3deg);
   }
 }
 
