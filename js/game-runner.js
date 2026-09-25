@@ -37,15 +37,19 @@ let petTapCount = 0;
 let petTapResetTimer = null;
 
 const levelMap = {
-  1: { label: 'Fase 1 · Desafio inicial', target: 2 },
-  2: { label: 'Fase 2 · Mais atenção', target: 2 },
-  3: { label: 'Fase 3 · Mestre da ideia', target: 3 },
+  1: { label: 'Nível 1 · Primeiros passos', target: 2, totalQuestions: 4 },
+  2: { label: 'Nível 2 · Mais confiança', target: 3, totalQuestions: 4 },
+  3: { label: 'Nível 3 · Raciocínio rápido', target: 3, totalQuestions: 5 },
+  4: { label: 'Nível 4 · Desafios divertidos', target: 4, totalQuestions: 5 },
+  5: { label: 'Nível 5 · Mestre da aventura', target: 4, totalQuestions: 6 },
 };
+const maxLevel = Object.keys(levelMap).length;
 
 function getQuestionsForLevel() {
-  const levelEnd = state.level === 3 ? baseQuestions.length : state.level * 2;
-  const levelQuestions = baseQuestions.slice((state.level - 1) * 2, levelEnd);
-  return levelQuestions.length ? levelQuestions : baseQuestions.slice(-2);
+  const levelConfig = levelMap[state.level] || levelMap[1];
+  const requestedTotal = levelConfig.totalQuestions || 4;
+  const generatedQuestions = buildQuestions(gameKey, requestedTotal + 3);
+  return generatedQuestions.slice(0, requestedTotal);
 }
 
 let currentQuestions = getQuestionsForLevel();
@@ -364,24 +368,37 @@ function answerQuestion(button, selectedValue, correctValue, explanation) {
   }, isCorrect ? 900 : 4000);
 }
 
+function triggerLevelCelebration() {
+  burstCruzeiroStars();
+  const celebration = document.createElement('div');
+  celebration.className = 'star-burst is-active';
+  celebration.setAttribute('aria-hidden', 'true');
+  celebration.innerHTML = `
+    <img class="star-burst__selo" src="assets/logo-cruzeiro-do-sul-estrela-512.webp" alt="" />
+  `;
+  document.querySelector('.question-card')?.appendChild(celebration);
+  window.setTimeout(() => celebration.remove(), 1200);
+}
+
 function finishLevel() {
   const target = levelMap[state.level]?.target || 2;
   const passed = state.correct >= target;
 
-  if (passed && state.level < 3) {
+  if (passed && state.level < maxLevel) {
+    triggerLevelCelebration();
     state.level += 1;
     state.index = 0;
     state.correct = 0;
     state.wrong = 0;
     currentQuestions = getQuestionsForLevel();
     questionMeta.textContent = `${levelMap[state.level]?.label || 'Próxima fase'} · ${gameInfo.label}`;
-    questionPrompt.textContent = 'Fase desbloqueada! Vamos para a próxima missão!';
-    speakToPlayer('FASE DESBLOQUEADA! SEU MASCOTE ESTÁ PRONTO PARA A PRÓXIMA AVENTURA.');
+    questionPrompt.textContent = `Nível concluído! 🎉 Vamos para ${levelMap[state.level]?.label || 'a próxima aventura'}!`;
+    speakToPlayer('NÍVEL CONCLUÍDO! VOCÊ ESTÁ PRONTO PARA A PRÓXIMA MISSÃO!');
     optionsGrid.innerHTML = `
       <div class="card" style="grid-column: 1 / -1;">
-        <p class="hint text-center" style="margin: 0;">Você passou de fase! Continue para a próxima etapa.</p>
+        <p class="hint text-center" style="margin: 0;">Parabéns! Você terminou este nível e desbloqueou o próximo desafio.</p>
         <div style="margin-top: 16px; text-align: center;">
-          <button type="button" class="btn btn--primary" id="nextLevelBtn">Continuar</button>
+          <button type="button" class="btn btn--primary" id="nextLevelBtn">Próxima fase</button>
         </div>
       </div>
     `;
@@ -395,7 +412,7 @@ function finishLevel() {
     return;
   }
 
-  if (passed && state.level >= 3) {
+  if (passed && state.level >= maxLevel) {
     finishGame();
     return;
   }
