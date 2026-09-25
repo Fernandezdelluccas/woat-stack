@@ -1515,6 +1515,11 @@ tbody tr:hover {
   box-shadow: var(--shadow-sm);
 }
 
+.shop-item:hover .shop-item__emoji {
+  animation: shopPetInvite 0.7s ease-in-out infinite alternate;
+  filter: drop-shadow(0 5px 8px rgba(34, 211, 238, 0.24));
+}
+
 .shop-item.selected {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 2px rgba(0, 194, 168, 0.18);
@@ -1533,6 +1538,11 @@ tbody tr:hover {
   color: var(--color-text-soft);
   font-size: 0.76rem;
   font-weight: 800;
+}
+
+@keyframes shopPetInvite {
+  from { transform: translateY(0) rotate(-4deg) scale(1); }
+  to { transform: translateY(-7px) rotate(4deg) scale(1.14); }
 }
 
 .achievements-panel {
