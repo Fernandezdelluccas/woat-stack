@@ -1,11 +1,13 @@
 {
   "version": 2,
   "name": "genios-do-jogo",
-  "builds": [
-    { "src": "**/*.html", "use": "@vercel/static" }
-  ],
   "routes": [
     { "src": "/", "dest": "/index.html" },
+    { "src": "/index", "dest": "/index.html" },
+    { "src": "/css/(.*)", "dest": "/css/$1" },
+    { "src": "/js/(.*)", "dest": "/js/$1" },
+    { "src": "/img/(.*)", "dest": "/img/$1" },
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
     { "src": "/(.*)", "dest": "/$1" }
   ]
 }
