@@ -23,17 +23,12 @@
       <div class="login-mark" aria-hidden="true">🧮</div>
       <span class="eyebrow">Bem-vindo(a)!</span>
       <h1>Entrar no jogo</h1>
-      <p>Use seu e-mail e sua senha para continuar sua aventura.</p>
+      <p>Digite seu nome, turma e senha para continuar sua aventura.</p>
 
       <form id="playerLoginForm" autocomplete="off">
         <div class="field">
-          <label for="nome">Nome <span class="hint">(somente no primeiro acesso)</span></label>
-          <input type="text" id="nome" name="nome" placeholder="Digite seu nome" />
-        </div>
-
-        <div class="field">
-          <label for="email">E-mail</label>
-          <input type="email" id="email" name="email" placeholder="seuemail@escola.com" required />
+          <label for="nome">Nome</label>
+          <input type="text" id="nome" name="nome" placeholder="Digite seu nome" required />
         </div>
 
         <div class="field">
@@ -81,9 +76,8 @@
       </form>
 
       <p class="hint" style="margin-top: 14px;">
-        Acesso provisório do aluno: <strong>aluno@escola.com</strong> / <strong>123456</strong>
+        Acesso provisório do aluno: <strong>Aluno provisório</strong> / <strong>4º ano</strong> / <strong>123456</strong>
       </p>
-      <p class="hint" style="margin-top: 14px;">Para um novo perfil, preencha também nome e turma.</p>
 
       <p class="hint" style="margin-top:18px;">
         É professor(a)? <a href="professor.html" style="color: var(--color-primary-dark); font-weight:700;">Área do professor</a>
@@ -100,12 +94,10 @@
       const form = document.getElementById('playerLoginForm');
       const avatarInputs = document.querySelectorAll('input[name="avatar"]');
       const nomeInput = document.getElementById('nome');
-      const emailInput = document.getElementById('email');
       const senhaInput = document.getElementById('senha');
       const turmaInput = document.getElementById('turma');
       const temporaryStudent = {
         nome: 'Aluno provisório',
-        email: 'aluno@escola.com',
         password: '123456',
         turma: '4º ano',
         avatar: '🦊',
@@ -122,13 +114,12 @@
         event.preventDefault();
 
         const nome = nomeInput.value.trim();
-        const email = emailInput.value.trim();
         const senha = senhaInput.value.trim();
         const turma = turmaInput.value.trim();
         const avatar = document.querySelector('input[name="avatar"]:checked')?.value || '🦊';
 
-        if (!email || !senha) {
-          window.alert('Informe seu e-mail e sua senha para entrar.');
+        if (!nome || !senha || !turma) {
+          window.alert('Informe seu nome, a turma e a senha para entrar.');
           return;
         }
 
@@ -138,32 +129,38 @@
         }
 
         const existing = window.GeniosApp.getPlayer();
-        const isExistingPlayer = existing && existing.email && existing.email.toLowerCase() === email.toLowerCase();
-        const isTemporaryStudent = email.toLowerCase() === temporaryStudent.email && senha === temporaryStudent.password;
+        const isExistingPlayer = existing && existing.nome && existing.nome.toLowerCase() === nome.toLowerCase();
+        const isTemporaryStudent = nome.toLowerCase() === temporaryStudent.nome.toLowerCase() && turma === temporaryStudent.turma && senha === temporaryStudent.password;
 
-        if (!isExistingPlayer && !isTemporaryStudent && (!nome || !turma)) {
-          window.alert('No primeiro acesso, informe seu nome e sua turma para criar o perfil.');
+        if (!isExistingPlayer && !isTemporaryStudent) {
+          const result = window.GeniosApp.registerUser({
+            nome,
+            email: `${nome.toLowerCase().replace(/\s+/g, '.') }@aluno.local`,
+            password: senha,
+            turma,
+            avatar,
+          });
+
+          if (!result.ok) {
+            window.alert(result.message || 'Não foi possível criar o perfil.');
+            return;
+          }
+
+          window.GeniosApp.setPlayer({ ...result.profile, lastPlayed: new Date().toISOString() });
+          window.location.href = 'materias.html';
           return;
         }
 
         const result = isExistingPlayer
-          ? window.GeniosApp.loginUser({ email, password: senha })
-          : isTemporaryStudent
-            ? window.GeniosApp.registerUser({
-                nome: temporaryStudent.nome,
-                email: temporaryStudent.email,
-                password: temporaryStudent.password,
-                turma: temporaryStudent.turma,
-                avatar: temporaryStudent.avatar,
-              })
-            : window.GeniosApp.registerUser({ nome, email, password: senha, turma, avatar });
+          ? window.GeniosApp.loginUser({ email: existing.email, password: senha })
+          : window.GeniosApp.loginUser({ email: `${temporaryStudent.nome.toLowerCase().replace(/\s+/g, '.') }@aluno.local`, password: senha });
 
         if (!result.ok) {
           window.alert(result.message || 'Não foi possível entrar no jogo.');
           return;
         }
 
-        window.GeniosApp.setPlayer({ ...result.profile, lastPlayed: new Date().toISOString() });
+        window.GeniosApp.setPlayer({ ...result.profile, avatar, turma, lastPlayed: new Date().toISOString() });
         window.location.href = 'materias.html';
       });
     });
