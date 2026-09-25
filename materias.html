@@ -181,6 +181,11 @@
               studioPetBubble.classList.remove('is-reacting');
               void studioPetBubble.offsetWidth;
               studioPetBubble.classList.add('is-reacting');
+              const previewStage = document.querySelector('.character-preview__stage');
+              previewStage?.classList.remove('is-reacting');
+              void previewStage?.offsetWidth;
+              previewStage?.classList.add('is-reacting');
+              window.setTimeout(() => previewStage?.classList.remove('is-reacting'), 700);
             });
 
             btn.addEventListener('click', () => {

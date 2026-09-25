@@ -471,8 +471,6 @@ select:focus-visible {
   line-height: 1;
   cursor: pointer;
   transition: transform 0.2s ease, filter 0.2s ease, opacity 0.2s ease;
-  animation: petFloat 2.9s ease-in-out infinite;
-  animation-delay: var(--pet-delay, 0s);
   filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.18));
 }
 
@@ -481,6 +479,10 @@ select:focus-visible {
   font-size: 5rem;
   line-height: 1;
   transform: translateY(-2px);
+  animation: petFloat 2.9s ease-in-out infinite;
+  animation-delay: var(--pet-delay, 0s);
+  filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.16));
+  transition: filter 0.2s ease;
 }
 
 .avatar-option:nth-child(2) { --pet-delay: 0.2s; }
@@ -490,13 +492,21 @@ select:focus-visible {
 .avatar-option:nth-child(6) { --pet-delay: 1s; }
 
 .avatar-option:hover {
-  transform: translateY(-6px) scale(1.06) rotate(-2deg);
-  filter: drop-shadow(0 16px 18px rgba(34, 211, 238, 0.18));
+  animation: petReact 0.55s ease-in-out infinite alternate;
+  filter: drop-shadow(0 16px 18px rgba(34, 211, 238, 0.32));
+}
+
+.avatar-option:hover .avatar-option__emoji {
+  animation: petFloat 1.8s ease-in-out infinite, petGlow 0.45s ease-in-out infinite alternate;
 }
 
 .avatar-option.selected {
   transform: scale(1.12) translateY(-2px);
   filter: drop-shadow(0 0 14px rgba(139, 92, 246, 0.6));
+}
+
+.avatar-option.selected:hover {
+  animation: petReact 0.55s ease-in-out infinite alternate;
 }
 
 @keyframes petFloat {
@@ -506,6 +516,16 @@ select:focus-visible {
   50% {
     transform: translateY(-6px);
   }
+}
+
+@keyframes petReact {
+  from { transform: translateY(-2px) rotate(-5deg) scale(1.08); }
+  to { transform: translateY(-9px) rotate(5deg) scale(1.16); }
+}
+
+@keyframes petGlow {
+  from { filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.3)) saturate(1.05); }
+  to { filter: drop-shadow(0 0 16px rgba(34, 211, 238, 0.65)) saturate(1.3); }
 }
 
 .grid {
