@@ -451,27 +451,29 @@ select:focus-visible {
 .avatar-picker {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 18px;
   justify-content: center;
-  padding: 8px 4px 4px;
+  padding: 10px 8px 6px;
+  align-items: center;
 }
 
 .avatar-option {
   position: relative;
-  width: 64px;
-  height: 64px;
+  width: 92px;
+  height: 92px;
   border-radius: 50%;
-  border: 3px solid transparent;
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.16), rgba(34, 211, 238, 0.12));
-  font-size: 2.05rem;
+  border: none;
+  background: transparent;
+  font-size: 18rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  line-height: 1;
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition: transform 0.2s ease, filter 0.2s ease, opacity 0.2s ease;
   animation: petFloat 2.9s ease-in-out infinite;
   animation-delay: var(--pet-delay, 0s);
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.18));
 }
 
 .avatar-option:nth-child(2) { --pet-delay: 0.2s; }
@@ -480,31 +482,14 @@ select:focus-visible {
 .avatar-option:nth-child(5) { --pet-delay: 0.8s; }
 .avatar-option:nth-child(6) { --pet-delay: 1s; }
 
-.avatar-option::after {
-  content: "";
-  position: absolute;
-  inset: -8px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  opacity: 0;
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
 .avatar-option:hover {
   transform: translateY(-6px) scale(1.06) rotate(-2deg);
-  box-shadow: 0 18px 28px rgba(29, 78, 216, 0.18), 0 0 0 5px rgba(34, 211, 238, 0.12);
-}
-
-.avatar-option:hover::after {
-  opacity: 1;
-  transform: scale(1.08);
+  filter: drop-shadow(0 16px 18px rgba(34, 211, 238, 0.18));
 }
 
 .avatar-option.selected {
-  border-color: var(--color-primary);
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.24), rgba(34, 211, 238, 0.18));
-  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.18), 0 18px 32px rgba(0, 0, 0, 0.18);
-  transform: scale(1.1) translateY(-2px);
+  transform: scale(1.12) translateY(-2px);
+  filter: drop-shadow(0 0 14px rgba(139, 92, 246, 0.6));
 }
 
 @keyframes petFloat {
