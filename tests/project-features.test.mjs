@@ -324,3 +324,10 @@ test('dock remove tema, mantém música e lê controles sem falar o PIN digitado
   assert.match(spoken.at(-1), /PIN secreto/);
   assert.equal(spoken.at(-1).includes(pinInput.value), false);
 });
+
+test('marca usa o GIF animado nos cinco cabeçalhos internos', () => {
+  for (const file of ['jogo.html', 'matematica.html', 'materias.html', 'professor.html', 'ranking.html']) {
+    const html = fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+    assert.ok(html.includes('brand__mark"><img src="img/Icone%20do%20Jogo.gif"'), `${file}: ícone da marca ausente`);
+  }
+});
