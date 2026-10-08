@@ -106,6 +106,11 @@ test('login explica perfil inexistente separadamente de PIN incorreto', async ()
   assert.equal(app.loginUser({ nome: 'Pedro', turma: '5º ano', password: '1111', accountType: 'school' }).code, 'INVALID_PIN');
 });
 
+test('entrada usa versão nova do módulo de login para descartar cache antigo', () => {
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.ok(html.includes('js/app-state.js?v=11'));
+});
+
 test('ranking local aceita somente escolares ativos e compartilha apenas com a turma', async () => {
   const app = createApp();
   await app.authorizeSchoolEnrollment({ code: 'CODIGO-DE-TESTE', turma: '4º ano' });
