@@ -156,6 +156,54 @@ body {
   width: min(100%, 460px);
 }
 
+.login-page .login-card.login-card--horizontal {
+  width: min(100%, 960px);
+}
+
+.login-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+  gap: clamp(20px, 4vw, 48px);
+  align-items: center;
+  min-width: 0;
+  text-align: left;
+}
+
+.login-intro,
+.login-form-section {
+  min-width: 0;
+}
+
+.login-intro {
+  text-align: center;
+}
+
+.login-form-section {
+  width: 100%;
+}
+
+.login-form-section .login-switch--compact {
+  margin-top: 0;
+}
+
+.login-layout .avatar-picker {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  justify-items: center;
+  gap: clamp(0px, 1vw, 8px);
+  padding-inline: 0;
+}
+
+.login-layout .avatar-option {
+  width: min(100%, 70px);
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.login-layout .avatar-option__emoji {
+  font-size: clamp(2.2rem, 5vw, 4rem);
+}
+
 .login-page input:not([type="radio"]),
 .login-page select {
   width: 100%;
@@ -2248,6 +2296,11 @@ tbody tr:hover {
   .login-page .login-card {
     width: 100%;
     padding: clamp(14px, 4vw, 22px) clamp(12px, 4vw, 18px);
+  }
+
+  .login-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
   }
 
   .login-page .avatar-picker {

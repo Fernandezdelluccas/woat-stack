@@ -8,11 +8,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=16" />
+  <link rel="stylesheet" href="css/style.css?v=17" />
   <style>
     body { justify-content: flex-start; min-height: 100svh; }
     .login-main { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; padding: clamp(16px, 3vh, 32px) 16px 32px; }
-    .login-card { width: min(100%, 460px); text-align: center; }
+    .login-card { width: min(100%, 960px); text-align: center; }
     .login-mark { width: 78px; height: 78px; margin: 0 auto 14px; border-radius: 18px; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: var(--shadow-md); }
     .login-mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
     @media (max-width: 720px), (max-height: 760px) {
@@ -23,26 +23,29 @@
   </style>
 </head>
 <body class="login-page">
-
   <main class="login-main">
-    <div class="card login-card">
-      <div class="login-mark" aria-hidden="true"><img src="img/Icone%20do%20Jogo.gif" alt="" width="78" height="78" fetchpriority="high" /></div>
-      <span class="eyebrow">Bem-vindo(a), explorador(a)!</span>
-      <h1>Vamos jogar?</h1>
-      <p>Entre com seu nome e um PIN fácil de lembrar.</p>
+    <div class="card login-card login-card--horizontal">
+      <div class="login-layout">
+        <section class="login-intro" aria-labelledby="loginTitle">
+          <div class="login-mark" aria-hidden="true"><img src="img/Icone%20do%20Jogo.gif" alt="" width="78" height="78" fetchpriority="high" /></div>
+          <span class="eyebrow">Bem-vindo(a), explorador(a)!</span>
+          <h1 id="loginTitle">Vamos jogar?</h1>
+          <p>Entre com seu nome e um PIN fácil de lembrar.</p>
 
-      <div class="login-switch" id="accountTypeSwitch" role="group" aria-label="Tipo de acesso">
-        <button type="button" class="login-switch__button is-active" data-account-type="school" aria-pressed="true">Da escola</button>
-        <button type="button" class="login-switch__button" data-account-type="outside" aria-pressed="false">De fora</button>
-      </div>
-      <p class="login-note" id="accountTypeDescription">Informe seu nome, turma e PIN.</p>
+          <div class="login-switch" id="accountTypeSwitch" role="group" aria-label="Tipo de acesso">
+            <button type="button" class="login-switch__button is-active" data-account-type="school" aria-pressed="true">Da escola</button>
+            <button type="button" class="login-switch__button" data-account-type="outside" aria-pressed="false">De fora</button>
+          </div>
+          <p class="login-note" id="accountTypeDescription">Informe seu nome, turma e PIN.</p>
+        </section>
 
-      <div class="login-switch login-switch--compact" id="authModeSwitch" role="group" aria-label="Ação da conta">
-        <button type="button" class="login-switch__button" data-auth-mode="login" aria-pressed="false">Entrar</button>
-        <button type="button" class="login-switch__button is-active" data-auth-mode="register" aria-pressed="true">Criar perfil</button>
-      </div>
+        <section class="login-form-section" aria-label="Dados de acesso">
+          <div class="login-switch login-switch--compact" id="authModeSwitch" role="group" aria-label="Ação da conta">
+            <button type="button" class="login-switch__button" data-auth-mode="login" aria-pressed="false">Entrar</button>
+            <button type="button" class="login-switch__button is-active" data-auth-mode="register" aria-pressed="true">Criar perfil</button>
+          </div>
 
-      <form id="playerLoginForm" autocomplete="on">
+          <form id="playerLoginForm" autocomplete="on">
         <div class="field" id="nameField">
           <label for="nome">Seu nome ou apelido</label>
           <input type="text" id="nome" name="nome" placeholder="Como podemos chamar você?" autocomplete="nickname" required />
@@ -96,22 +99,24 @@
 
         <p class="form-feedback" id="loginFeedback" role="alert" hidden></p>
         <button type="submit" class="btn btn--primary btn--block" id="loginSubmit">Criar perfil e jogar</button>
-      </form>
+          </form>
 
-      <details class="login-help">
+          <details class="login-help">
         <summary>Quais dados devo usar para entrar?</summary>
         <ul>
           <li><strong>Aluno da escola:</strong> nome e PIN escolhidos no cadastro; código da escola <code>ESCOLA2026</code>.</li>
           <li><strong>Visitante:</strong> nome e PIN escolhidos ao criar o perfil.</li>
           <li><strong>Professor:</strong> e-mail <code>professor@escola.com</code> e senha <code>123456</code>.</li>
         </ul>
-      </details>
+          </details>
 
-      <p class="hint login-device-note">Novo perfil: escolha um PIN de 4 números. Se já tem perfil, use a senha que cadastrou antes.</p>
+          <p class="hint login-device-note">Novo perfil: escolha um PIN de 4 números. Se já tem perfil, use a senha que cadastrou antes.</p>
 
-      <p class="hint" style="margin-top:18px;">
-        É professor(a)? <a href="professor.html" style="color: var(--color-primary-dark); font-weight:700;">Área do professor</a>
-      </p>
+          <p class="hint" style="margin-top:18px;">
+            É professor(a)? <a href="professor.html" style="color: var(--color-primary-dark); font-weight:700;">Área do professor</a>
+          </p>
+        </section>
+      </div>
     </div>
   </main>
 
