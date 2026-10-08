@@ -111,8 +111,6 @@ html {
 body {
   font-family: var(--font-body);
   background:
-    linear-gradient(135deg, var(--image-overlay), var(--image-overlay)),
-    url('../img/classroom-study.jpg') center / cover fixed,
     linear-gradient(135deg, var(--color-bg) 0%, var(--color-bg-2) 45%, var(--color-bg-3) 76%, var(--color-page-end) 100%);
   color: var(--color-text);
   min-height: 100vh;
@@ -121,6 +119,44 @@ body {
   overflow-x: hidden;
   transition: background 0.35s ease, color 0.2s ease;
   -webkit-font-smoothing: antialiased;
+}
+
+.login-page {
+  --color-primary: #368864;
+  --color-primary-dark: #d9efdf;
+  --color-primary-light: #63ae7d;
+  --color-secondary: #e7b765;
+  --color-accent: #77bd8a;
+  --color-accent-dark: #a9dbb5;
+  --color-text: #fffaf0;
+  --color-text-soft: #e2e1d5;
+  --color-surface: rgba(16, 38, 37, 0.94);
+  --color-surface-solid: #173d38;
+  --color-glass: rgba(16, 38, 37, 0.84);
+  --color-glass-strong: rgba(12, 31, 32, 0.94);
+  --color-glass-border: rgba(232, 190, 119, 0.3);
+  --focus-shadow: 0 0 0 4px rgba(119, 189, 138, 0.22);
+  background:
+    linear-gradient(90deg, rgba(9, 24, 29, 0.24), rgba(8, 27, 29, 0.16) 55%, rgba(9, 24, 29, 0.28)),
+    url('../img/Sala%20de%20Aula%20Divertida%20de%20Matem%C3%A1tica.png') center / cover fixed;
+}
+
+.login-page::before {
+  background: linear-gradient(180deg, rgba(12, 29, 33, 0.08), rgba(12, 29, 33, 0.2));
+  animation: none;
+}
+
+.login-page .login-card {
+  border-color: rgba(232, 190, 119, 0.42);
+  background: rgba(16, 38, 37, 0.94);
+  box-shadow: 0 24px 70px rgba(8, 18, 19, 0.44), 0 0 0 1px rgba(255, 244, 218, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.login-page .login-mark {
+  background: linear-gradient(135deg, #f1c86f, #d88945);
+  color: #214b3c;
+  box-shadow: 0 8px 22px rgba(215, 151, 72, 0.28);
 }
 
 body::before {
