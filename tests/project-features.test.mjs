@@ -164,6 +164,16 @@ test('pet da loja levita suavemente e respeita movimento reduzido', () => {
   assert.ok(css.includes('.character-preview__float,\n  .character-preview::after'));
 });
 
+test('pergunta e mascote ficam lado a lado em telas largas e empilham no celular', () => {
+  const html = fs.readFileSync(new URL('../jogo.html', import.meta.url), 'utf8');
+  const css = fs.readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  assert.ok(html.includes('class="game-companion"'));
+  assert.ok(css.includes('"question companion"'));
+  assert.ok(css.includes('@media (max-width: 680px)'));
+  assert.ok(css.includes('font-size: clamp(10rem, 40vw, 14rem)'));
+  assert.equal(css.includes('.game-companion {\n  position: absolute'), false);
+});
+
 test('login do professor esconde matérias e sai para a tela inicial', () => {
   class Element {
     constructor() { this.style = {}; this.value = ''; this.handlers = {}; this.hidden = false; }

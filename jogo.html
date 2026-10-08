@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20" />
+  <link rel="stylesheet" href="css/style.css?v=21" />
 </head>
 <body>
 
@@ -28,7 +28,7 @@
 
   <main class="main">
     <div class="container game-shell">
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
+      <div class="game-shell__actions" style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
         <a href="matematica.html" class="hint">← Sair do jogo</a>
         <button type="button" class="btn btn--ghost" id="tutorialButton" style="padding:8px 14px; font-size:0.78rem;">📘 Tutorial</button>
       </div>
@@ -40,7 +40,7 @@
         <div class="game-hud__item">⏱️ <span id="tempo">00:00</span></div>
       </div>
 
-      <div class="progress-bar" style="margin-bottom:24px;">
+      <div class="progress-bar game-progress" style="margin-bottom:24px;">
         <div class="progress-bar__fill" id="progressBar" style="width: 0%;"></div>
       </div>
 
