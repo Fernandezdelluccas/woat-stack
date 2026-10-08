@@ -23,13 +23,13 @@
       <div class="login-mark" aria-hidden="true">🧮</div>
       <span class="eyebrow">Bem-vindo(a), explorador(a)!</span>
       <h1>Vamos jogar?</h1>
-      <p>Escolha seu tipo de acesso e entre na aventura.</p>
+      <p>Entre com seu nome e um PIN fácil de lembrar.</p>
 
       <div class="login-switch" id="accountTypeSwitch" role="group" aria-label="Tipo de acesso">
         <button type="button" class="login-switch__button is-active" data-account-type="school" aria-pressed="true">Da escola</button>
         <button type="button" class="login-switch__button" data-account-type="outside" aria-pressed="false">De fora</button>
       </div>
-      <p class="login-note" id="accountTypeDescription">Use o e-mail fornecido pela escola.</p>
+      <p class="login-note" id="accountTypeDescription">Informe seu nome, turma e PIN.</p>
 
       <div class="login-switch login-switch--compact" id="authModeSwitch" role="group" aria-label="Ação da conta">
         <button type="button" class="login-switch__button" data-auth-mode="login" aria-pressed="false">Entrar</button>
@@ -37,22 +37,17 @@
       </div>
 
       <form id="playerLoginForm" autocomplete="on">
-        <div class="field">
-          <label for="email">E-mail</label>
-          <input type="email" id="email" name="email" placeholder="voce@escola.com" autocomplete="username" required />
-        </div>
-
-        <div class="field register-only" id="nameField">
-          <label for="nome">Nome</label>
-          <input type="text" id="nome" name="nome" placeholder="Como podemos chamar você?" autocomplete="name" />
+        <div class="field" id="nameField">
+          <label for="nome">Seu nome ou apelido</label>
+          <input type="text" id="nome" name="nome" placeholder="Como podemos chamar você?" autocomplete="nickname" required />
         </div>
 
         <div class="field">
-          <label for="senha">Senha</label>
-          <input type="password" id="senha" name="senha" placeholder="Mínimo de 6 caracteres" minlength="6" autocomplete="current-password" required />
+          <label for="senha">PIN secreto</label>
+          <input type="password" id="senha" name="senha" placeholder="4 números" inputmode="numeric" minlength="4" maxlength="32" autocomplete="current-password" required />
         </div>
 
-        <div class="field register-only school-only" id="classField">
+        <div class="field school-only" id="classField">
           <label for="turma">Qual é a sua turma?</label>
           <select id="turma" name="turma">
             <option value="" disabled selected>Selecione a sua turma</option>
@@ -92,7 +87,7 @@
         <button type="submit" class="btn btn--primary btn--block" id="loginSubmit">Criar perfil e jogar</button>
       </form>
 
-      <p class="hint login-device-note">Perfis são salvos neste dispositivo.</p>
+      <p class="hint login-device-note">Novo perfil: escolha um PIN de 4 números. Se já tem perfil, use a senha que cadastrou antes.</p>
 
       <p class="hint" style="margin-top:18px;">
         É professor(a)? <a href="professor.html" style="color: var(--color-primary-dark); font-weight:700;">Área do professor</a>
@@ -102,7 +97,7 @@
 
   <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
 
-  <script src="js/app-state.js?v=5"></script>
+  <script src="js/app-state.js?v=6"></script>
   <script src="js/nav.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -114,7 +109,6 @@
       const loginFeedback = document.getElementById('loginFeedback');
       const loginSubmit = document.getElementById('loginSubmit');
       const nomeInput = document.getElementById('nome');
-      const emailInput = document.getElementById('email');
       const senhaInput = document.getElementById('senha');
       const turmaInput = document.getElementById('turma');
       const nameField = document.getElementById('nameField');
@@ -130,16 +124,21 @@
 
       const updateFormMode = () => {
         const isRegistering = authMode === 'register';
-        const needsClass = isRegistering && accountType === 'school';
-        nameField.hidden = !isRegistering;
+        const needsClass = accountType === 'school';
+        nameField.hidden = false;
         avatarField.hidden = !isRegistering;
         classField.hidden = !needsClass;
-        nomeInput.required = isRegistering;
+        nomeInput.required = true;
         turmaInput.required = needsClass;
         senhaInput.autocomplete = isRegistering ? 'new-password' : 'current-password';
+        if (isRegistering) {
+          senhaInput.setAttribute('pattern', '[0-9]{4}');
+        } else {
+          senhaInput.removeAttribute('pattern');
+        }
         accountTypeDescription.textContent = accountType === 'school'
-          ? 'Use o e-mail fornecido pela escola.'
-          : 'Use seu e-mail pessoal. Seu perfil fica salvo neste dispositivo.';
+          ? 'Na escola, informe seu nome, sua turma e seu PIN.'
+          : 'Para entrar como visitante, informe seu nome e seu PIN.';
         loginSubmit.textContent = isRegistering
           ? accountType === 'school' ? 'Criar perfil escolar' : 'Criar perfil de visitante'
           : 'Entrar e jogar';
@@ -181,32 +180,35 @@
         event.preventDefault();
 
         const nome = nomeInput.value.trim();
-        const email = emailInput.value.trim().toLowerCase();
         const senha = senhaInput.value.trim();
         const turma = turmaInput.value.trim();
         const avatar = document.querySelector('input[name="avatar"]:checked')?.value || '🦊';
         const isRegistering = authMode === 'register';
 
-        if (!email || !senha || (isRegistering && !nome) || (isRegistering && accountType === 'school' && !turma)) {
-          showFeedback('Preencha os campos obrigatórios para continuar.');
+        if (!nome || !senha || (accountType === 'school' && !turma)) {
+          showFeedback('Informe seu nome, seu PIN e sua turma.');
           return;
         }
 
-        if (senha.length < 6) {
-          showFeedback('A senha precisa ter pelo menos 6 caracteres.');
+        if (isRegistering && !/^\d{4}$/.test(senha)) {
+          showFeedback('Crie um PIN com exatamente 4 números.');
+          return;
+        }
+
+        if (!isRegistering && senha.length < 4) {
+          showFeedback('Digite seu PIN para entrar.');
           return;
         }
 
         const result = isRegistering
           ? window.GeniosApp.registerUser({
               nome,
-              email,
               password: senha,
               turma: accountType === 'school' ? turma : 'Visitante',
               avatar,
               accountType,
             })
-          : window.GeniosApp.loginUser({ email, password: senha, accountType });
+          : window.GeniosApp.loginUser({ nome, turma, password: senha, accountType });
 
         if (!result.ok) {
           showFeedback(result.message || 'Não foi possível entrar no jogo.');

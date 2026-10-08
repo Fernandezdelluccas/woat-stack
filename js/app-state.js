@@ -170,13 +170,29 @@
   }
 
   function registerUser({ nome, email, password, turma, avatar, accountType }) {
-    const safeEmail = String(email || '').trim().toLowerCase();
     const safeName = String(nome || '').trim();
-    if (!safeName || !safeEmail || !password) return { ok: false, message: 'Dados incompletos.' };
+    const safeAccountType = accountType === 'outside' ? 'outside' : 'school';
+    const safeClass = String(turma || (safeAccountType === 'outside' ? 'Visitante' : '')).trim();
+    if (!safeName || !password || (safeAccountType === 'school' && !safeClass)) {
+      return { ok: false, message: 'Informe seu nome, PIN e turma.' };
+    }
+    if (!/^\d{4}$/.test(String(password))) {
+      return { ok: false, message: 'O PIN precisa ter exatamente 4 números.' };
+    }
+
+    const identity = `${safeAccountType}|${safeName.toLocaleLowerCase('pt-BR')}|${safeClass.toLocaleLowerCase('pt-BR')}`;
+    const safeEmail = email
+      ? String(email).trim().toLowerCase()
+      : `perfil-${hashString(identity)}@genios.local`;
 
     const accounts = getAccounts();
     if (accounts.some((account) => account.email?.toLowerCase() === safeEmail)) {
-      return { ok: false, message: 'Este e-mail já está em uso.' };
+      return {
+        ok: false,
+        message: email
+          ? 'Este e-mail já está em uso.'
+          : 'Esse nome já tem perfil nessa turma. Tente outro apelido.',
+      };
     }
 
     const profile = {
@@ -184,7 +200,7 @@
       email: safeEmail,
       turma: turma || '4º ano',
       avatar: avatar || '🦊',
-      accountType: accountType === 'outside' ? 'outside' : 'school',
+      accountType: safeAccountType,
       passwordHash: hashString(password),
       coins: 0,
       lastPlayed: new Date().toISOString(),
@@ -196,11 +212,21 @@
     return { ok: true, profile };
   }
 
-  function loginUser({ email, password, accountType }) {
+  function loginUser({ email, nome, turma, password, accountType }) {
     const safeEmail = String(email || '').trim().toLowerCase();
-    const stored = getAccounts().find((account) => account.email?.toLowerCase() === safeEmail);
-    if (!stored || stored.passwordHash !== hashString(password) || (accountType && stored.accountType !== accountType)) {
-      return { ok: false, message: 'E-mail ou senha incorretos.' };
+    const safeName = String(nome || '').trim().toLocaleLowerCase('pt-BR');
+    const safeClass = String(turma || '').trim().toLocaleLowerCase('pt-BR');
+    const accounts = getAccounts();
+    const candidates = safeEmail
+      ? accounts.filter((account) => account.email?.toLowerCase() === safeEmail)
+      : accounts.filter((account) => (
+          account.nome.toLocaleLowerCase('pt-BR') === safeName
+          && (!accountType || account.accountType === accountType)
+          && (account.accountType === 'outside' || account.turma.toLocaleLowerCase('pt-BR') === safeClass)
+        ));
+    const stored = candidates.find((account) => account.passwordHash === hashString(password));
+    if (!stored || (accountType && stored.accountType !== accountType)) {
+      return { ok: false, message: 'Nome, turma ou PIN incorretos.' };
     }
 
     const player = normalizePlayer(stored);

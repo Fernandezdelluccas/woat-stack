@@ -28,23 +28,23 @@ function hashPassword(password) {
 
 test('perfis escolares e externos têm login e dados separados', () => {
   const app = createApp();
-  const school = app.registerUser({ nome: 'Aluna', email: 'aluna@escola.test', password: 'senha123', turma: '4º ano', accountType: 'school' });
-  const outside = app.registerUser({ nome: 'Visitante', email: 'fora@example.test', password: 'senha456', turma: 'Visitante', accountType: 'outside' });
+  const school = app.registerUser({ nome: 'Aluna', password: '2580', turma: '4º ano', accountType: 'school' });
+  const outside = app.registerUser({ nome: 'Visitante', password: '1357', turma: 'Visitante', accountType: 'outside' });
   assert.equal(school.ok, true);
   assert.equal(outside.ok, true);
-  assert.equal(app.loginUser({ email: school.profile.email, password: 'senha123', accountType: 'outside' }).ok, false);
-  assert.equal(app.loginUser({ email: school.profile.email, password: 'senha123', accountType: 'school' }).ok, true);
+  assert.equal(app.loginUser({ nome: 'Aluna', turma: '4º ano', password: '2580', accountType: 'outside' }).ok, false);
+  assert.equal(app.loginUser({ nome: 'Aluna', turma: '4º ano', password: '2580', accountType: 'school' }).ok, true);
 
   app.setUnlockedCosmetics(['starter', 'base-cat']);
   app.unlockAchievement('first-game');
   app.saveGameSession({ gameKey: 'adicao', points: 48, acertos: 4, erros: 0, seconds: 82, bestStreak: 4 });
 
-  assert.equal(app.loginUser({ email: outside.profile.email, password: 'senha456', accountType: 'outside' }).ok, true);
+  assert.equal(app.loginUser({ nome: 'Visitante', password: '1357', accountType: 'outside' }).ok, true);
   assert.deepEqual(Array.from(app.getUnlockedCosmetics()), ['starter']);
   assert.deepEqual(Array.from(app.getAchievements()), []);
   assert.equal(app.getGameHistory().length, 0);
 
-  assert.equal(app.loginUser({ email: school.profile.email, password: 'senha123', accountType: 'school' }).ok, true);
+  assert.equal(app.loginUser({ nome: 'Aluna', turma: '4º ano', password: '2580', accountType: 'school' }).ok, true);
   assert.deepEqual(Array.from(app.getUnlockedCosmetics()), ['starter', 'base-cat']);
   assert.equal(app.getGameHistory().length, 1);
 });
@@ -59,6 +59,15 @@ test('perfil legado sem tipo continua entrando como conta escolar', () => {
   };
   const app = createApp({ 'genios-player': JSON.stringify(profile) });
   assert.equal(app.loginUser({ email: profile.email, password: 'senha123', accountType: 'school' }).ok, true);
+});
+
+test('cadastro de criança exige PIN de quatro dígitos e evita apelidos duplicados na turma', () => {
+  const app = createApp();
+  assert.equal(app.registerUser({ nome: 'Bia', password: '12x4', turma: '3º ano', accountType: 'school' }).ok, false);
+  assert.equal(app.registerUser({ nome: 'Bia', password: '2468', turma: '3º ano', accountType: 'school' }).ok, true);
+  assert.equal(app.registerUser({ nome: 'Bia', password: '9753', turma: '3º ano', accountType: 'school' }).ok, false);
+  assert.equal(app.loginUser({ nome: 'Bia', turma: '3º ano', password: '2468', accountType: 'school' }).ok, true);
+  assert.equal(app.loginUser({ nome: 'Bia', turma: '3º ano', password: '1111', accountType: 'school' }).ok, false);
 });
 
 test('cada operação gera exemplos práticos e contextos variados', () => {
@@ -125,11 +134,13 @@ test('login do professor esconde matérias e sai para a tela inicial', () => {
   assert.equal(redirect, 'index.html');
 });
 
-test('login mostra escolha escolar/externa e exige senha apenas ao entrar', () => {
+test('login infantil oferece acesso por apelido e PIN sem campo de e-mail', () => {
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  for (const marker of ['data-account-type="school"', 'data-account-type="outside"', 'data-auth-mode="login"', 'data-auth-mode="register"', 'id="loginFeedback"']) {
+  for (const marker of ['data-account-type="school"', 'data-account-type="outside"', 'data-auth-mode="login"', 'data-auth-mode="register"', 'id="loginFeedback"', 'autocomplete="nickname"', 'inputmode="numeric"']) {
     assert.ok(html.includes(marker), `controle ausente: ${marker}`);
   }
+  assert.ok(!html.includes('id="email"'), 'a tela infantil não deve pedir e-mail');
+  assert.ok(!html.includes('emailInput'), 'o controlador da tela não deve ler e-mail');
   const inlineScripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
   assert.equal(inlineScripts.length, 1);
   assert.doesNotThrow(() => new Function(inlineScripts[0][1]));

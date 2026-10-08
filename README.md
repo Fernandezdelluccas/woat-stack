@@ -21,6 +21,6 @@ Use a raiz do repositório como Root Directory, Framework Preset `Other` e deixe
 
 ## Dados e autenticação
 
-Os perfis, pontuações, sessões, desafios, cosméticos e conquistas ficam no `localStorage` deste navegador e dispositivo. As opções “Da escola” e “De fora” separam os tipos de perfil na interface, mas não verificam domínio escolar e não sincronizam contas entre dispositivos.
+As crianças entram com nome/apelido e PIN de quatro dígitos; perfis escolares também usam a turma. O acesso de visitante não pede turma. Os perfis, pontuações, sessões, desafios, cosméticos e conquistas ficam no `localStorage` deste navegador e dispositivo. As opções “Da escola” e “De fora” separam os tipos de perfil na interface, mas não verificam vínculo escolar e não sincronizam contas entre dispositivos. Perfis antigos ainda podem entrar com a senha já cadastrada.
 
 O arquivo `supabase/schema.sql` prepara tabelas para perfis, sessões, respostas, pontuações e progresso. Para persistência remota real, aplique o schema no Supabase, conecte o cliente nas páginas e configure Supabase Auth e políticas RLS antes de permitir gravações públicas. A chave `anon` do cliente não substitui autenticação nem autorização.
