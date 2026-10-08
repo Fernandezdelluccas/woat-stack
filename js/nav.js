@@ -1,18 +1,8 @@
 (() => {
-  const root = document.documentElement;
   const storage = {
-    theme: 'exatas-play-theme',
     volume: 'exatas-play-volume',
+    voiceGuide: 'genios-voice-guide',
   };
-  const themes = ['dark', 'light'];
-  const themeLabels = {
-    dark: 'Escuro',
-    light: 'Claro',
-  };
-
-  const savedTheme = localStorage.getItem(storage.theme);
-  const initialTheme = themes.includes(savedTheme) ? savedTheme : 'dark';
-  root.dataset.theme = initialTheme;
 
   document.addEventListener('DOMContentLoaded', () => {
     setupAvatarPicker();
@@ -61,48 +51,52 @@
   function setupControlDock() {
     const controls = document.createElement('aside');
     controls.className = 'app-controls';
-    controls.setAttribute('aria-label', 'Controles de tema e som');
+    controls.setAttribute('aria-label', 'Música e acessibilidade');
 
     controls.innerHTML = `
-      <button type="button" class="control-btn control-btn--theme" aria-label="Trocar tema" title="Trocar tema">
-        <span aria-hidden="true">&#9728;</span>
+      <button type="button" class="control-btn control-btn--voice" aria-label="Ativar leitura por voz" aria-pressed="false" title="Ativar leitura por voz">
+        <span aria-hidden="true">&#128483;</span>
       </button>
       <div class="sound-control">
-        <button type="button" class="control-btn control-btn--sound" aria-label="Ligar musica" aria-pressed="false" title="Ligar musica">
+        <button type="button" class="control-btn control-btn--sound" aria-label="Ligar música" aria-pressed="false" title="Ligar música">
           <span aria-hidden="true">&#9835;</span>
         </button>
-        <label class="volume-control" title="Volume da musica">
-          <span aria-hidden="true">&#128266;</span>
-          <input class="volume-slider" type="range" min="0" max="100" step="1" aria-label="Volume da musica" />
+        <label class="volume-control" title="Volume da música">
+          <span class="volume-icon" aria-hidden="true">&#128266;</span>
+          <input class="volume-slider" type="range" min="0" max="100" step="1" aria-label="Volume da música" />
+          <output class="volume-value" aria-hidden="true"></output>
         </label>
       </div>
     `;
 
     document.body.appendChild(controls);
 
-    const themeButton = controls.querySelector('.control-btn--theme');
+    const voiceButton = controls.querySelector('.control-btn--voice');
     const soundButton = controls.querySelector('.control-btn--sound');
     const volumeSlider = controls.querySelector('.volume-slider');
+    const volumeValue = controls.querySelector('.volume-value');
     const music = createMusicController(soundButton);
-    const savedVolume = Number(localStorage.getItem(storage.volume));
-    const initialVolume = Number.isFinite(savedVolume) ? savedVolume : 36;
+    const storedVolume = localStorage.getItem(storage.volume);
+    const savedVolume = storedVolume === null ? 36 : Number(storedVolume);
+    const initialVolume = Number.isFinite(savedVolume) ? Math.max(0, Math.min(100, savedVolume)) : 36;
 
     volumeSlider.value = initialVolume;
+    volumeSlider.style.setProperty('--volume-progress', `${initialVolume}%`);
+    volumeValue.value = `${initialVolume}%`;
     music.setVolume(initialVolume / 100);
-    updateThemeButton(themeButton);
-
-    themeButton.addEventListener('click', () => {
-      const currentTheme = root.dataset.theme || initialTheme;
-      const nextTheme = themes[(themes.indexOf(currentTheme) + 1) % themes.length];
-      root.dataset.theme = nextTheme;
-      localStorage.setItem(storage.theme, nextTheme);
-      updateThemeButton(themeButton);
-    });
+    setupVoiceGuide(voiceButton);
 
     soundButton.addEventListener('click', () => {
       if (music.isPlaying()) {
         music.stop();
       } else {
+        if (Number(volumeSlider.value) === 0) {
+          volumeSlider.value = '36';
+          volumeSlider.style.setProperty('--volume-progress', '36%');
+          volumeValue.value = '36%';
+          localStorage.setItem(storage.volume, '36');
+          music.setVolume(0.36);
+        }
         music.start();
       }
     });
@@ -110,30 +104,111 @@
     volumeSlider.addEventListener('input', () => {
       const volume = Number(volumeSlider.value);
       localStorage.setItem(storage.volume, String(volume));
+      volumeSlider.style.setProperty('--volume-progress', `${volume}%`);
+      volumeValue.value = `${volume}%`;
       music.setVolume(volume / 100);
 
       if (volume === 0) {
         music.stop();
-      } else if (!music.isPlaying()) {
-        music.start();
       }
     });
   }
 
-  function updateThemeButton(button) {
-    const currentTheme = root.dataset.theme || 'dark';
-    const isDark = currentTheme === 'dark';
-    const label = themeLabels[currentTheme] || themeLabels.dark;
-    const nextLabel = isDark ? themeLabels.light : themeLabels.dark;
-    const icon = button.querySelector('span');
+  function setupVoiceGuide(button) {
+    const synthesis = window.speechSynthesis;
+    const supported = synthesis && typeof window.SpeechSynthesisUtterance === 'function';
+    let enabled = localStorage.getItem(storage.voiceGuide) === 'true';
+    let previousText = '';
+    let previousTime = 0;
+    const targetSelector = [
+      'button', 'a', 'input', 'select', '[role="button"]',
+      '.tile', '.field', '.avatar-option', '.shop-item', '.shop-tab',
+      '.option-btn', '.question-card__prompt', '.question-example',
+      '.game-companion__avatar', '.game-companion__bubble',
+    ].join(',');
 
-    if (icon) {
-      icon.innerHTML = isDark ? '&#9728;' : '&#9790;';
+    if (!supported) {
+      button.disabled = true;
+      button.title = 'Leitura por voz indisponível neste navegador';
+      button.setAttribute('aria-label', 'Leitura por voz indisponível neste navegador');
+      return;
     }
 
-    button.classList.toggle('is-dark-theme', isDark);
-    button.title = `Mudar para tema ${nextLabel.toLowerCase()}`;
-    button.setAttribute('aria-label', `Tema atual: ${label}. Mudar para tema ${nextLabel.toLowerCase()}`);
+    function updateButton() {
+      button.classList.toggle('is-enabled', enabled);
+      button.setAttribute('aria-pressed', String(enabled));
+      button.setAttribute('aria-label', enabled ? 'Desativar leitura por voz' : 'Ativar leitura por voz');
+      button.title = enabled ? 'Desativar leitura por voz' : 'Ativar leitura por voz';
+    }
+
+    function speak(text, force = false) {
+      const cleanText = String(text || '').replace(/\s+/g, ' ').trim();
+      if (!enabled || !cleanText) return;
+      const now = Date.now();
+      if (!force && cleanText === previousText && now - previousTime < 1800) return;
+      previousText = cleanText;
+      previousTime = now;
+      synthesis.cancel();
+      const utterance = new window.SpeechSynthesisUtterance(cleanText);
+      utterance.lang = 'pt-BR';
+      utterance.rate = 0.96;
+      utterance.pitch = 1.04;
+      const portugueseVoice = synthesis.getVoices().find((voice) => voice.lang.toLowerCase().startsWith('pt'));
+      if (portugueseVoice) utterance.voice = portugueseVoice;
+      synthesis.speak(utterance);
+    }
+
+    function describe(target) {
+      if (target.matches('.avatar-option')) {
+        const emoji = target.querySelector('.avatar-option__emoji')?.textContent.trim();
+        const names = { '🦊': 'raposa', '🐱': 'gatinho', '🦉': 'coruja', '🦕': 'dinossauro', '🦄': 'unicórnio', '🤖': 'robô' };
+        return `Avatar ${names[emoji] || ''}. Toque para escolher.`;
+      }
+
+      const field = target.matches('.field') ? target : target.closest('.field');
+      const label = field?.querySelector('label')?.textContent.trim();
+      if (target.matches('input[type="password"]')) {
+        return `${label || 'Campo secreto'}. Digite sem se preocupar: não vou ler os números que você escreveu.`;
+      }
+      if (target.matches('input, select')) {
+        return label ? `${label}. Campo para preencher.` : target.getAttribute('aria-label');
+      }
+      if (target.matches('.tile, .shop-item')) {
+        const title = target.querySelector('h2, h3, strong')?.textContent.trim();
+        const description = target.querySelector('p')?.textContent.trim();
+        return [title, description].filter(Boolean).join('. ');
+      }
+      if (target.matches('.question-card__prompt, .question-example, .game-companion__bubble')) {
+        return target.textContent.trim();
+      }
+      if (target.matches('.field')) return label;
+
+      const accessibleName = target.getAttribute('aria-label') || target.title;
+      const visibleText = target.innerText || target.textContent;
+      const type = target.matches('button, [role="button"]') ? 'Botão' : target.matches('a') ? 'Link' : '';
+      return [type, accessibleName || visibleText].filter(Boolean).join(': ').trim();
+    }
+
+    function handleTarget(event) {
+      const target = event.target.closest(targetSelector);
+      if (!target || target.closest('.app-controls') || target.contains(event.relatedTarget)) return;
+      speak(describe(target));
+    }
+
+    button.addEventListener('click', () => {
+      enabled = !enabled;
+      localStorage.setItem(storage.voiceGuide, String(enabled));
+      updateButton();
+      if (enabled) {
+        speak('Leitura por voz ativada. Passe o mouse ou use Tab para ouvir instruções.', true);
+      } else {
+        synthesis.cancel();
+      }
+    });
+
+    document.addEventListener('pointerover', handleTarget);
+    document.addEventListener('focusin', handleTarget);
+    updateButton();
   }
 
   function createMusicController(button) {
@@ -196,8 +271,8 @@
     function setButtonState() {
       button.classList.toggle('is-playing', playing);
       button.setAttribute('aria-pressed', String(playing));
-      button.setAttribute('aria-label', playing ? 'Pausar musica' : 'Ligar musica');
-      button.title = playing ? 'Pausar musica' : 'Ligar musica';
+      button.setAttribute('aria-label', playing ? 'Pausar música' : 'Ligar música');
+      button.title = playing ? 'Pausar música' : 'Ligar música';
     }
 
     return {

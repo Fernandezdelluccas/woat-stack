@@ -219,3 +219,103 @@ test('códigos escolares e tabelas de ranking têm proteção server-side no sch
     assert.ok(schema.toLowerCase().includes(marker.toLowerCase()), `proteção ausente: ${marker}`);
   }
 });
+
+test('dock remove tema, mantém música e lê controles sem falar o PIN digitado', () => {
+  const storage = new Map();
+  const spoken = [];
+  const documentHandlers = {};
+  let audioContextCreations = 0;
+
+  function element() {
+    return {
+      style: { setProperty(name, value) { this[name] = value; } },
+      attributes: {},
+      handlers: {},
+      classList: { toggle() {} },
+      addEventListener(type, handler) { this.handlers[type] = handler; },
+      setAttribute(name, value) { this.attributes[name] = String(value); },
+      getAttribute(name) { return this.attributes[name] || null; },
+      matches(selector) { return this.matchSelectors?.includes(selector) || false; },
+      closest(selector) {
+        if (selector === '.app-controls') return null;
+        if (selector === '.field') return this.field || null;
+        return selector === this.targetSelector ? this : null;
+      },
+      contains() { return false; },
+      querySelector() { return null; },
+      innerText: '',
+      textContent: '',
+      value: '',
+    };
+  }
+
+  const voiceButton = element();
+  const soundButton = element();
+  const volumeSlider = element();
+  const volumeValue = element();
+  const dock = element();
+  dock.querySelector = (selector) => ({
+    '.control-btn--voice': voiceButton,
+    '.control-btn--sound': soundButton,
+    '.volume-slider': volumeSlider,
+    '.volume-value': volumeValue,
+  })[selector] || null;
+
+  const document = {
+    body: { appendChild() {} },
+    addEventListener(type, handler) { documentHandlers[type] = handler; },
+    createElement() { return dock; },
+    querySelectorAll() { return []; },
+    getElementById() { return null; },
+  };
+  const localStorage = {
+    getItem: (key) => storage.get(key) ?? null,
+    setItem: (key, value) => storage.set(key, String(value)),
+  };
+  const window = {
+    location: { pathname: 'index.html' },
+    SpeechSynthesisUtterance: class { constructor(text) { this.text = text; } },
+    speechSynthesis: {
+      cancel() {},
+      getVoices: () => [{ lang: 'pt-BR' }],
+      speak: (utterance) => spoken.push(utterance.text),
+    },
+    AudioContext: class {
+      constructor() {
+        audioContextCreations += 1;
+        throw new Error('Mudar volume não deve iniciar a música.');
+      }
+    },
+  };
+  const source = fs.readFileSync(new URL('../js/nav.js', import.meta.url), 'utf8');
+  vm.runInNewContext(source, { window, document, localStorage });
+  documentHandlers.DOMContentLoaded();
+
+  assert.equal(volumeSlider.value, 36);
+  assert.equal(volumeValue.value, '36%');
+  assert.equal(dock.innerHTML.includes('control-btn--theme'), false);
+  assert.equal(dock.innerHTML.includes('control-btn--sound'), true);
+  volumeSlider.value = '57';
+  volumeSlider.handlers.input();
+  assert.equal(storage.get('exatas-play-volume'), '57');
+  assert.equal(volumeValue.value, '57%');
+  assert.equal(audioContextCreations, 0);
+
+  voiceButton.handlers.click();
+  assert.equal(storage.get('genios-voice-guide'), 'true');
+  const enterButton = element();
+  enterButton.matchSelectors = ['button, [role="button"]'];
+  enterButton.targetSelector = 'button,a,input,select,[role="button"],.tile,.field,.avatar-option,.shop-item,.shop-tab,.option-btn,.question-card__prompt,.question-example,.game-companion__avatar,.game-companion__bubble';
+  enterButton.innerText = 'Entrar e jogar';
+  documentHandlers.pointerover({ target: enterButton, relatedTarget: null });
+  assert.match(spoken.at(-1), /Entrar e jogar/);
+
+  const pinInput = element();
+  pinInput.matchSelectors = ['input[type="password"]'];
+  pinInput.targetSelector = enterButton.targetSelector;
+  pinInput.field = { querySelector: () => ({ textContent: 'PIN secreto' }) };
+  pinInput.value = '4826';
+  documentHandlers.focusin({ target: pinInput, relatedTarget: null });
+  assert.match(spoken.at(-1), /PIN secreto/);
+  assert.equal(spoken.at(-1).includes(pinInput.value), false);
+});

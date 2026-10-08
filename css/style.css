@@ -1239,18 +1239,18 @@ tbody tr:hover {
 
 .app-controls {
   position: fixed;
-  right: 18px;
-  bottom: 18px;
+  right: 20px;
+  bottom: 20px;
   z-index: 60;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px;
-  border-radius: var(--radius-pill);
-  background: var(--color-control);
-  border: 1px solid var(--color-control-border);
-  box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(16px);
+  gap: 9px;
+  padding: 9px;
+  border: 1px solid rgba(229, 237, 241, 0.22);
+  border-radius: 20px;
+  background: rgba(11, 23, 31, 0.9);
+  box-shadow: 0 12px 36px rgba(4, 12, 18, 0.42);
+  backdrop-filter: blur(18px) saturate(1.2);
   animation: dockIn 0.35s ease;
 }
 
@@ -1259,18 +1259,19 @@ tbody tr:hover {
   height: 46px;
   border: 0;
   border-radius: 50%;
+  flex: 0 0 46px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: #fff;
   font-size: 1.28rem;
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.24);
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s ease, filter 0.2s ease;
 }
 
 .control-btn:hover {
-  transform: translateY(-2px) scale(1.04);
+  transform: translateY(-2px) scale(1.06);
   box-shadow: var(--shadow-md);
 }
 
@@ -1278,18 +1279,24 @@ tbody tr:hover {
   transform: translateY(1px) scale(0.98);
 }
 
-.control-btn--theme {
-  background: linear-gradient(135deg, var(--color-secondary), var(--color-primary));
-  color: #101623;
+.control-btn:focus-visible,
+.volume-slider:focus-visible {
+  outline: 3px solid #f0c36a;
+  outline-offset: 3px;
 }
 
-.control-btn--theme.is-dark-theme {
-  background: linear-gradient(135deg, var(--color-sky), var(--color-primary));
-  color: #fff;
+.control-btn--voice {
+  background: linear-gradient(145deg, #79bd91, #31785e);
+  color: #09251d;
+}
+
+.control-btn--voice.is-enabled {
+  background: linear-gradient(145deg, #f1c76f, #d89345);
+  box-shadow: 0 0 0 3px rgba(241, 199, 111, 0.22), 0 6px 18px rgba(0, 0, 0, 0.26);
 }
 
 .control-btn--sound {
-  background: linear-gradient(135deg, var(--color-accent), var(--color-primary));
+  background: linear-gradient(145deg, #66b9c2, #367e92);
 }
 
 .control-btn--sound.is-playing {
@@ -1299,27 +1306,38 @@ tbody tr:hover {
 .sound-control {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
 }
 
 .volume-control {
-  width: 136px;
+  width: clamp(158px, 18vw, 198px);
   height: 46px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  border-radius: var(--radius-pill);
-  background: var(--color-glass);
-  border: 1px solid var(--color-glass-border);
-  color: var(--color-primary-dark);
-  font-size: 1rem;
+  gap: 9px;
+  padding: 0 11px;
+  border: 1px solid rgba(229, 237, 241, 0.16);
+  border-radius: 14px;
+  background: rgba(226, 235, 239, 0.08);
+  color: #edf5f4;
+  font-size: 0.95rem;
 }
 
 .volume-slider {
-  width: 86px;
-  accent-color: var(--color-primary);
+  width: auto;
+  min-width: 50px;
+  flex: 1;
+  accent-color: #78c39a;
   cursor: pointer;
+}
+
+.volume-value {
+  background: linear-gradient(to right, #83c99d var(--volume-progress, 36%), rgba(230, 239, 241, 0.2) var(--volume-progress, 36%));
+  color: #d8e7e3;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .footer {
@@ -2522,16 +2540,24 @@ tbody tr:hover {
   }
 
   .app-controls {
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
+    left: auto;
+    right: 10px;
+    bottom: 10px;
+    max-width: calc(100vw - 20px);
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .control-btn {
+    flex-basis: 42px;
+    width: 42px;
+    height: 42px;
   }
 
   .volume-control {
-    width: 120px;
-  }
-
-  .volume-slider {
-    width: 70px;
+    width: clamp(118px, 38vw, 168px);
+    height: 42px;
+    gap: 5px;
+    padding: 0 8px;
   }
 }
