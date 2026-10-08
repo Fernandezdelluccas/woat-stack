@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=7" />
+  <link rel="stylesheet" href="css/style.css?v=10" />
 </head>
 <body>
 
@@ -58,6 +58,7 @@
             <span class="character-preview__spark character-preview__spark--two">✧</span>
             <div class="character-preview__stage">
               <div class="character-preview__layer character-preview__base" id="characterBase">🦊</div>
+              <div class="character-preview__layer character-preview__outfit" id="characterOutfit">👕</div>
               <div class="character-preview__layer character-preview__hair" id="characterHair"></div>
               <div class="character-preview__layer character-preview__accessory" id="characterAccessory"></div>
             </div>
@@ -68,6 +69,7 @@
             <div class="shop-tabs" role="tablist" aria-label="Categorias da loja">
               <button type="button" class="shop-tab is-active" data-category="personagem">Personagem</button>
               <button type="button" class="shop-tab" data-category="cabelo">Cabelo</button>
+              <button type="button" class="shop-tab" data-category="roupa">Roupas</button>
               <button type="button" class="shop-tab" data-category="acessório">Acessórios</button>
             </div>
             <div class="shop-grid" id="cosmeticsGrid"></div>
@@ -82,12 +84,20 @@
         </div>
         <div class="achievement-grid" id="achievementGrid"></div>
       </section>
+
+      <section class="activity-panel" aria-labelledby="activityTitle">
+        <div>
+          <span class="eyebrow">Seu progresso</span>
+          <h2 id="activityTitle">Últimas aventuras</h2>
+        </div>
+        <div class="activity-list" id="gameHistoryList" aria-live="polite"></div>
+      </section>
     </div>
   </main>
 
   <footer class="footer">G&Ecirc;NIOS DO JOGO · CRUZEIRO DO SUL · ANÁLIA FRANCO I</footer>
 
-  <script src="js/app-state.js?v=4"></script>
+  <script src="js/app-state.js?v=5"></script>
   <script src="js/nav.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -104,11 +114,13 @@
       const coinsBadge = document.getElementById('coinsBadge');
       const cosmeticsGrid = document.getElementById('cosmeticsGrid');
       const characterBase = document.getElementById('characterBase');
+      const characterOutfit = document.getElementById('characterOutfit');
       const characterHair = document.getElementById('characterHair');
       const characterAccessory = document.getElementById('characterAccessory');
       const characterName = document.getElementById('characterName');
       const studioPetBubble = document.getElementById('studioPetBubble');
       const achievementGrid = document.getElementById('achievementGrid');
+      const gameHistoryList = document.getElementById('gameHistoryList');
       let activeCategory = 'personagem';
 
       const findItem = (id) => (window.GeniosApp.characterCatalog || []).find((item) => item.id === id);
@@ -116,9 +128,11 @@
       const renderCharacter = () => {
         const look = window.GeniosApp.getEquippedCharacter();
         const base = findItem(look.base);
+        const outfit = findItem(look.outfit);
         const hair = findItem(look.hair);
         const accessory = findItem(look.accessory);
         characterBase.textContent = base?.emoji || '🦊';
+        characterOutfit.textContent = outfit?.emoji || '👕';
         characterHair.textContent = hair?.emoji || '';
         characterAccessory.textContent = accessory?.emoji || '';
         characterName.textContent = `${player?.nome || 'Meu'} estiloso(a)`;
@@ -133,6 +147,41 @@
             <small>${item.description}</small>
           </article>
         `).join('');
+      };
+
+      const renderGameHistory = () => {
+        if (!gameHistoryList) return;
+        const gameLabels = {
+          adicao: 'Adição',
+          subtracao: 'Subtração',
+          multiplicacao: 'Multiplicação',
+          divisao: 'Divisão',
+          formas: 'Formas geométricas',
+        };
+        const history = (window.GeniosApp.getGameHistory?.() || []).slice(-5).reverse();
+        gameHistoryList.replaceChildren();
+
+        if (history.length === 0) {
+          const empty = document.createElement('p');
+          empty.className = 'hint';
+          empty.textContent = 'Suas aventuras concluídas aparecerão aqui.';
+          gameHistoryList.appendChild(empty);
+          return;
+        }
+
+        history.forEach((session) => {
+          const item = document.createElement('article');
+          item.className = 'activity-item';
+          const title = document.createElement('strong');
+          title.textContent = gameLabels[session.gameKey] || 'Aventura';
+          const result = document.createElement('span');
+          result.textContent = `${session.points} pontos · ${session.correct} acertos · ${session.wrong} erros`;
+          const date = document.createElement('time');
+          date.dateTime = session.completedAt;
+          date.textContent = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' }).format(new Date(session.completedAt));
+          item.append(title, result, date);
+          gameHistoryList.appendChild(item);
+        });
       };
 
       const reactToEquip = (item) => {
@@ -217,6 +266,7 @@
       renderCharacter();
       renderShop();
       renderAchievements();
+      renderGameHistory();
     });
   </script>
 </body>

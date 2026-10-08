@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=8" />
+  <link rel="stylesheet" href="css/style.css?v=10" />
   <style>
     body { justify-content: center; }
     .login-main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 32px 16px; }
@@ -21,22 +21,38 @@
   <main class="login-main">
     <div class="card login-card">
       <div class="login-mark" aria-hidden="true">🧮</div>
-      <span class="eyebrow">Bem-vindo(a)!</span>
-      <h1>Entrar no jogo</h1>
-      <p>Digite seu nome, turma e senha para continuar sua aventura.</p>
+      <span class="eyebrow">Bem-vindo(a), explorador(a)!</span>
+      <h1>Vamos jogar?</h1>
+      <p>Escolha seu tipo de acesso e entre na aventura.</p>
 
-      <form id="playerLoginForm" autocomplete="off">
+      <div class="login-switch" id="accountTypeSwitch" role="group" aria-label="Tipo de acesso">
+        <button type="button" class="login-switch__button is-active" data-account-type="school" aria-pressed="true">Da escola</button>
+        <button type="button" class="login-switch__button" data-account-type="outside" aria-pressed="false">De fora</button>
+      </div>
+      <p class="login-note" id="accountTypeDescription">Use o e-mail fornecido pela escola.</p>
+
+      <div class="login-switch login-switch--compact" id="authModeSwitch" role="group" aria-label="Ação da conta">
+        <button type="button" class="login-switch__button" data-auth-mode="login" aria-pressed="false">Entrar</button>
+        <button type="button" class="login-switch__button is-active" data-auth-mode="register" aria-pressed="true">Criar perfil</button>
+      </div>
+
+      <form id="playerLoginForm" autocomplete="on">
         <div class="field">
+          <label for="email">E-mail</label>
+          <input type="email" id="email" name="email" placeholder="voce@escola.com" autocomplete="username" required />
+        </div>
+
+        <div class="field register-only" id="nameField">
           <label for="nome">Nome</label>
-          <input type="text" id="nome" name="nome" placeholder="Digite seu nome" required />
+          <input type="text" id="nome" name="nome" placeholder="Como podemos chamar você?" autocomplete="name" />
         </div>
 
         <div class="field">
           <label for="senha">Senha</label>
-          <input type="password" id="senha" name="senha" placeholder="Digite sua senha" minlength="6" required />
+          <input type="password" id="senha" name="senha" placeholder="Mínimo de 6 caracteres" minlength="6" autocomplete="current-password" required />
         </div>
 
-        <div class="field">
+        <div class="field register-only school-only" id="classField">
           <label for="turma">Qual é a sua turma?</label>
           <select id="turma" name="turma">
             <option value="" disabled selected>Selecione a sua turma</option>
@@ -48,7 +64,7 @@
           </select>
         </div>
 
-        <div class="field">
+        <div class="field register-only" id="avatarField">
           <label>Escolha seu avatar</label>
           <div class="avatar-picker" role="radiogroup" aria-label="Avatar">
             <label class="avatar-option selected">
@@ -72,12 +88,11 @@
           </div>
         </div>
 
-        <button type="submit" class="btn btn--primary btn--block">Entrar e jogar 🚀</button>
+        <p class="form-feedback" id="loginFeedback" role="alert" hidden></p>
+        <button type="submit" class="btn btn--primary btn--block" id="loginSubmit">Criar perfil e jogar</button>
       </form>
 
-      <p class="hint" style="margin-top: 14px;">
-        Acesso provisório do aluno: <strong>Aluno provisório</strong> / <strong>4º ano</strong> / <strong>123456</strong>
-      </p>
+      <p class="hint login-device-note">Perfis são salvos neste dispositivo.</p>
 
       <p class="hint" style="margin-top:18px;">
         É professor(a)? <a href="professor.html" style="color: var(--color-primary-dark); font-weight:700;">Área do professor</a>
@@ -87,21 +102,73 @@
 
   <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
 
-  <script src="js/app-state.js?v=4"></script>
+  <script src="js/app-state.js?v=5"></script>
   <script src="js/nav.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const form = document.getElementById('playerLoginForm');
       const avatarInputs = document.querySelectorAll('input[name="avatar"]');
+      const accountTypeButtons = document.querySelectorAll('[data-account-type]');
+      const authModeButtons = document.querySelectorAll('[data-auth-mode]');
+      const accountTypeDescription = document.getElementById('accountTypeDescription');
+      const loginFeedback = document.getElementById('loginFeedback');
+      const loginSubmit = document.getElementById('loginSubmit');
       const nomeInput = document.getElementById('nome');
+      const emailInput = document.getElementById('email');
       const senhaInput = document.getElementById('senha');
       const turmaInput = document.getElementById('turma');
-      const temporaryStudent = {
-        nome: 'Aluno provisório',
-        password: '123456',
-        turma: '4º ano',
-        avatar: '🦊',
+      const nameField = document.getElementById('nameField');
+      const classField = document.getElementById('classField');
+      const avatarField = document.getElementById('avatarField');
+      let accountType = 'school';
+      let authMode = 'register';
+
+      const showFeedback = (message) => {
+        loginFeedback.textContent = message;
+        loginFeedback.hidden = !message;
       };
+
+      const updateFormMode = () => {
+        const isRegistering = authMode === 'register';
+        const needsClass = isRegistering && accountType === 'school';
+        nameField.hidden = !isRegistering;
+        avatarField.hidden = !isRegistering;
+        classField.hidden = !needsClass;
+        nomeInput.required = isRegistering;
+        turmaInput.required = needsClass;
+        senhaInput.autocomplete = isRegistering ? 'new-password' : 'current-password';
+        accountTypeDescription.textContent = accountType === 'school'
+          ? 'Use o e-mail fornecido pela escola.'
+          : 'Use seu e-mail pessoal. Seu perfil fica salvo neste dispositivo.';
+        loginSubmit.textContent = isRegistering
+          ? accountType === 'school' ? 'Criar perfil escolar' : 'Criar perfil de visitante'
+          : 'Entrar e jogar';
+        accountTypeButtons.forEach((button) => {
+          const selected = button.dataset.accountType === accountType;
+          button.classList.toggle('is-active', selected);
+          button.setAttribute('aria-pressed', String(selected));
+        });
+        authModeButtons.forEach((button) => {
+          const selected = button.dataset.authMode === authMode;
+          button.classList.toggle('is-active', selected);
+          button.setAttribute('aria-pressed', String(selected));
+        });
+        showFeedback('');
+      };
+
+      accountTypeButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          accountType = button.dataset.accountType;
+          updateFormMode();
+        });
+      });
+
+      authModeButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          authMode = button.dataset.authMode;
+          updateFormMode();
+        });
+      });
 
       avatarInputs.forEach((input) => {
         input.addEventListener('change', () => {
@@ -114,55 +181,43 @@
         event.preventDefault();
 
         const nome = nomeInput.value.trim();
+        const email = emailInput.value.trim().toLowerCase();
         const senha = senhaInput.value.trim();
         const turma = turmaInput.value.trim();
         const avatar = document.querySelector('input[name="avatar"]:checked')?.value || '🦊';
+        const isRegistering = authMode === 'register';
 
-        if (!nome || !senha || !turma) {
-          window.alert('Informe seu nome, a turma e a senha para entrar.');
+        if (!email || !senha || (isRegistering && !nome) || (isRegistering && accountType === 'school' && !turma)) {
+          showFeedback('Preencha os campos obrigatórios para continuar.');
           return;
         }
 
         if (senha.length < 6) {
-          window.alert('A senha precisa ter pelo menos 6 caracteres.');
+          showFeedback('A senha precisa ter pelo menos 6 caracteres.');
           return;
         }
 
-        const existing = window.GeniosApp.getPlayer();
-        const isExistingPlayer = existing && existing.nome && existing.nome.toLowerCase() === nome.toLowerCase();
-        const isTemporaryStudent = nome.toLowerCase() === temporaryStudent.nome.toLowerCase() && turma === temporaryStudent.turma && senha === temporaryStudent.password;
-
-        if (!isExistingPlayer && !isTemporaryStudent) {
-          const result = window.GeniosApp.registerUser({
-            nome,
-            email: `${nome.toLowerCase().replace(/\s+/g, '.') }@aluno.local`,
-            password: senha,
-            turma,
-            avatar,
-          });
-
-          if (!result.ok) {
-            window.alert(result.message || 'Não foi possível criar o perfil.');
-            return;
-          }
-
-          window.GeniosApp.setPlayer({ ...result.profile, lastPlayed: new Date().toISOString() });
-          window.location.href = 'materias.html';
-          return;
-        }
-
-        const result = isExistingPlayer
-          ? window.GeniosApp.loginUser({ email: existing.email, password: senha })
-          : window.GeniosApp.loginUser({ email: `${temporaryStudent.nome.toLowerCase().replace(/\s+/g, '.') }@aluno.local`, password: senha });
+        const result = isRegistering
+          ? window.GeniosApp.registerUser({
+              nome,
+              email,
+              password: senha,
+              turma: accountType === 'school' ? turma : 'Visitante',
+              avatar,
+              accountType,
+            })
+          : window.GeniosApp.loginUser({ email, password: senha, accountType });
 
         if (!result.ok) {
-          window.alert(result.message || 'Não foi possível entrar no jogo.');
+          showFeedback(result.message || 'Não foi possível entrar no jogo.');
           return;
         }
 
-        window.GeniosApp.setPlayer({ ...result.profile, avatar, turma, lastPlayed: new Date().toISOString() });
+        window.GeniosApp.setPlayer({ ...result.profile, lastPlayed: new Date().toISOString() });
         window.location.href = 'materias.html';
       });
+
+      updateFormMode();
     });
   </script>
 </body>

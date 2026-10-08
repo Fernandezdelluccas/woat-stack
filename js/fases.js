@@ -1,6 +1,6 @@
 // Renderiza o grid de fases de Matemática (matematica.html), buscando o
 // progresso do aluno em "progresso_fases" pra saber o que está destravado.
-import { FASES } from './game.mjs';
+import { FASES } from './game.mjs?v=10';
 
 async function init() {
   const perfil = window.PerfilSession && window.PerfilSession.getPerfilAtivo();

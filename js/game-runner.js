@@ -1,4 +1,4 @@
-import { buildQuestions, getGameDefinition, formatAnswer } from './game.mjs';
+import { buildQuestions, getGameDefinition, formatAnswer } from './game.mjs?v=10';
 
 const gameKey = new URLSearchParams(window.location.search).get('game') || 'adicao';
 const manualTutorialRequested = new URLSearchParams(window.location.search).get('tutorial') === 'manual';
@@ -16,10 +16,16 @@ const state = {
   level: 1,
   levelTarget: 2,
   retryReason: '',
+  totalCorrect: 0,
+  totalWrong: 0,
+  currentStreak: 0,
+  bestStreak: 0,
+  answers: [],
 };
 
 const questionMeta = document.getElementById('questionMeta');
 const questionVisual = document.getElementById('questionVisual');
+const questionExample = document.getElementById('questionExample');
 const questionPrompt = document.getElementById('questionPrompt');
 const optionsGrid = document.getElementById('optionsGrid');
 const progressBar = document.getElementById('progressBar');
@@ -48,7 +54,14 @@ const maxLevel = Object.keys(levelMap).length;
 function getQuestionsForLevel() {
   const levelConfig = levelMap[state.level] || levelMap[1];
   const requestedTotal = levelConfig.totalQuestions || 4;
-  const generatedQuestions = buildQuestions(gameKey, requestedTotal + 3);
+  const recentContexts = (window.GeniosApp?.getGameHistory?.() || [])
+    .filter((session) => session.gameKey === gameKey)
+    .flatMap((session) => (session.answers || []).map((answer) => answer.contextId).filter(Boolean))
+    .slice(-20);
+  const usedInCurrentGame = state.answers.map((answer) => answer.contextId).filter(Boolean);
+  const generatedQuestions = buildQuestions(gameKey, requestedTotal + 3, {
+    excludeContextIds: [...recentContexts, ...usedInCurrentGame],
+  });
   return generatedQuestions.slice(0, requestedTotal);
 }
 
@@ -88,6 +101,10 @@ function renderQuestion() {
   questionMeta.textContent = `${levelMap[state.level]?.label || 'Desafio'} · ${gameInfo.label}`;
   speakToPlayer('LEIA A HISTÓRIA E OBSERVE O EXEMPLO VISUAL. DEPOIS ESCOLHA UMA RESPOSTA.');
   renderQuestionVisual(current.visual);
+  if (questionExample) {
+    questionExample.textContent = current.example || '';
+    questionExample.hidden = !current.example;
+  }
   questionPrompt.textContent = current.prompt;
   optionsGrid.innerHTML = '';
 
@@ -123,6 +140,18 @@ function getPetAffectionPhrase() {
     'EU ACREDITO EM VOCÊ! UMA PERGUNTA DE CADA VEZ.',
   ];
   return phrases[petTapCount % phrases.length];
+}
+
+function petTap() {
+  playPetSound();
+  gameCompanion.classList.add('is-petted');
+  petTapCount += 1;
+  if (petTapResetTimer) window.clearTimeout(petTapResetTimer);
+  petTapResetTimer = window.setTimeout(() => { petTapCount = 0; }, 1800);
+  speakToPlayer(petTapCount >= 3
+    ? 'QUER MUDAR DE PET? SEGURE OU ATIVE O MASCOTE PARA ABRIR A LOJA!'
+    : getPetAffectionPhrase());
+  window.setTimeout(() => gameCompanion.classList.remove('is-petted'), 650);
 }
 
 function reactToAnswer(isCorrect) {
@@ -273,6 +302,20 @@ function playAchievementSound() {
 }
 
 if (gameCompanion) {
+  gameCompanion.addEventListener('pointerenter', () => {
+    gameCompanion.classList.add('is-hovered');
+    speakToPlayer('OI! PASSE O MOUSE OU TOQUE EM MIM PARA INTERAGIR!');
+  });
+
+  gameCompanion.addEventListener('pointerleave', () => gameCompanion.classList.remove('is-hovered'));
+  gameCompanion.addEventListener('focus', () => gameCompanion.classList.add('is-hovered'));
+  gameCompanion.addEventListener('blur', () => gameCompanion.classList.remove('is-hovered'));
+  gameCompanion.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    petTap();
+  });
+
   gameCompanion.addEventListener('pointerdown', (event) => {
     event.preventDefault();
     petLongPress = false;
@@ -288,17 +331,7 @@ if (gameCompanion) {
   gameCompanion.addEventListener('pointerup', () => {
     window.clearTimeout(petPressTimer);
     if (petLongPress) return;
-    playPetSound();
-    gameCompanion.classList.add('is-petted');
-    petTapCount += 1;
-    if (petTapResetTimer) window.clearTimeout(petTapResetTimer);
-    petTapResetTimer = window.setTimeout(() => { petTapCount = 0; }, 1800);
-    if (petTapCount >= 3) {
-      speakToPlayer('QUER MUDAR DE PET? CLIQUE E SEGURE EM MIM PARA ABRIR A LOJA!');
-    } else {
-      speakToPlayer(getPetAffectionPhrase());
-    }
-    window.setTimeout(() => gameCompanion.classList.remove('is-petted'), 650);
+    petTap();
   });
 
   gameCompanion.addEventListener('pointercancel', () => window.clearTimeout(petPressTimer));
@@ -324,6 +357,14 @@ function renderQuestionVisual(visual) {
 
 function answerQuestion(button, selectedValue, correctValue, explanation) {
   const isCorrect = selectedValue === correctValue || String(selectedValue) === String(correctValue);
+  const current = currentQuestions[state.index];
+  state.answers.push({
+    prompt: current?.prompt || '',
+    answer: String(selectedValue),
+    correctAnswer: String(correctValue),
+    correct: isCorrect,
+    contextId: current?.contextId || '',
+  });
   reactToAnswer(isCorrect);
   playAnswerSound(isCorrect);
 
@@ -341,6 +382,9 @@ function answerQuestion(button, selectedValue, correctValue, explanation) {
 
   if (isCorrect) {
     state.correct += 1;
+    state.totalCorrect += 1;
+    state.currentStreak += 1;
+    state.bestStreak = Math.max(state.bestStreak, state.currentStreak);
     state.score += 12;
     speakToPlayer(state.correct % 2 === 0 ? 'MANDOU BEM! VOCÊ ENTENDEU A IDEIA.' : 'BOA! ESSE RACIOCÍNIO ESTÁ CERTO.');
     if (window.GeniosApp && typeof window.GeniosApp.addCoins === 'function') {
@@ -348,6 +392,8 @@ function answerQuestion(button, selectedValue, correctValue, explanation) {
     }
   } else {
     state.wrong += 1;
+    state.totalWrong += 1;
+    state.currentStreak = 0;
     state.score = Math.max(0, state.score - 4);
     state.retryReason = explanation;
     speakToPlayer(`DICA: ${explanation}`);
@@ -445,16 +491,37 @@ function finishGame() {
   window.clearInterval(state.timerId);
 
   if (window.GeniosApp) {
-    if (window.GeniosApp.unlockAchievement?.('first-game')) showAchievementToast('first-game');
-    if (state.correct >= 10 && window.GeniosApp.unlockAchievement?.('ten-correct')) showAchievementToast('ten-correct');
-    if (window.GeniosApp.getCoins?.() >= 100 && window.GeniosApp.unlockAchievement?.('coin-collector')) showAchievementToast('coin-collector');
+    const history = window.GeniosApp.saveGameSession?.({
+      gameKey,
+      points: state.score,
+      acertos: state.totalCorrect,
+      erros: state.totalWrong,
+      seconds: state.seconds,
+      bestStreak: state.bestStreak,
+      answers: state.answers,
+    }) || [];
+    const playedGames = new Set(history.map((session) => session.gameKey));
+    const achievements = [
+      ['first-game', history.length >= 1],
+      ['ten-correct', state.totalCorrect >= 10],
+      ['coin-collector', window.GeniosApp.getCoins?.() >= 100],
+      ['five-games', history.length >= 5],
+      ['all-subjects', playedGames.size >= 5],
+      ['perfect-game', state.totalWrong === 0],
+      ['streak-master', state.bestStreak >= 5],
+      ['speed-run', state.seconds <= 120],
+    ];
+
+    achievements.forEach(([id, earned]) => {
+      if (earned && window.GeniosApp.unlockAchievement?.(id)) showAchievementToast(id);
+    });
   }
 
   if (window.GeniosApp && typeof window.GeniosApp.upsertScore === 'function') {
     window.GeniosApp.upsertScore(player, {
       points: state.score,
-      acertos: state.correct,
-      erros: state.wrong,
+      acertos: state.totalCorrect,
+      erros: state.totalWrong,
       tempo: formatElapsed(state.seconds),
     });
   }

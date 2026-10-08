@@ -9,6 +9,9 @@
   const passwordInput = document.getElementById('professorPassword');
   const errorText = document.getElementById('loginError');
   const logoutButton = document.getElementById('logoutProfessor');
+  const cancelButton = document.getElementById('cancelProfessorLogin');
+  const teacherNavigation = document.getElementById('teacherNavigation');
+  const brandLink = document.querySelector('.topbar__inner .brand');
 
   if (!form || !loginSection || !dashboardSection) {
     return;
@@ -22,6 +25,15 @@
     }
     loginSection.style.display = value ? 'none' : 'block';
     dashboardSection.style.display = value ? 'block' : 'none';
+    if (teacherNavigation) {
+      teacherNavigation.hidden = !value;
+      teacherNavigation.style.display = value ? '' : 'none';
+    }
+    if (brandLink) brandLink.href = value ? 'materias.html' : 'index.html';
+  }
+
+  function returnToStudentLogin() {
+    window.location.replace('index.html');
   }
 
   function isLoggedIn() {
@@ -58,6 +70,15 @@
   logoutButton.addEventListener('click', () => {
     setLoggedIn(false);
     hideError();
+    returnToStudentLogin();
+  });
+
+  cancelButton?.addEventListener('click', returnToStudentLogin);
+
+  loginSection.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    returnToStudentLogin();
   });
 
   setLoggedIn(isLoggedIn());

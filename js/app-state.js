@@ -1,9 +1,11 @@
 (function () {
   const STORAGE_KEYS = {
     player: 'genios-player',
+    accounts: 'genios-accounts',
     ranking: 'genios-ranking',
     professor: 'genios-professor-auth',
     coins: 'genios-coins',
+    gameHistory: 'genios-game-history',
     cosmetics: 'genios-cosmetics',
     selectedCosmetic: 'genios-selected-cosmetic',
     character: 'genios-character',
@@ -39,24 +41,38 @@
     { id: 'base-penguin', slot: 'base', category: 'personagem', label: 'Pinguim', emoji: '🐧', price: 35 },
     { id: 'base-lion', slot: 'base', category: 'personagem', label: 'Leãozinho', emoji: '🦁', price: 50 },
     { id: 'base-koala', slot: 'base', category: 'personagem', label: 'Coala', emoji: '🐨', price: 45 },
+    { id: 'base-frog', slot: 'base', category: 'personagem', label: 'Sapinho', emoji: '🐸', price: 35 },
+    { id: 'base-bear', slot: 'base', category: 'personagem', label: 'Ursinho', emoji: '🐻', price: 45 },
+    { id: 'base-chick', slot: 'base', category: 'personagem', label: 'Pintinho', emoji: '🐤', price: 30 },
+    { id: 'base-octopus', slot: 'base', category: 'personagem', label: 'Polvinho', emoji: '🐙', price: 50 },
     { id: 'hair-none', slot: 'hair', category: 'cabelo', label: 'Sem acessório', emoji: '', price: 0 },
     { id: 'hair-rainbow', slot: 'hair', category: 'cabelo', label: 'Laço arco-íris', emoji: '🎀', price: 35 },
     { id: 'hair-cap', slot: 'hair', category: 'cabelo', label: 'Boné', emoji: '🧢', price: 45 },
     { id: 'hair-crown', slot: 'hair', category: 'cabelo', label: 'Coroa', emoji: '👑', price: 120 },
+    { id: 'hair-flower', slot: 'hair', category: 'cabelo', label: 'Flor', emoji: '🌼', price: 30 },
+    { id: 'hair-star', slot: 'hair', category: 'cabelo', label: 'Estrela', emoji: '🌟', price: 45 },
     { id: 'outfit-basic', slot: 'outfit', category: 'roupa', label: 'Roupa aventureira', emoji: '👕', price: 0 },
     { id: 'outfit-blue', slot: 'outfit', category: 'roupa', label: 'Moletom azul', emoji: '🧥', price: 55 },
     { id: 'outfit-sport', slot: 'outfit', category: 'roupa', label: 'Uniforme esportivo', emoji: '🥋', price: 70 },
+    { id: 'outfit-cape', slot: 'outfit', category: 'roupa', label: 'Capa de herói', emoji: '🦸', price: 90 },
+    { id: 'outfit-raincoat', slot: 'outfit', category: 'roupa', label: 'Capa de chuva', emoji: '🧥', price: 65 },
     { id: 'accessory-none', slot: 'accessory', category: 'acessório', label: 'Sem acessório', emoji: '', price: 0 },
     { id: 'accessory-glasses', slot: 'accessory', category: 'acessório', label: 'Óculos estrela', emoji: '🕶️', price: 90 },
     { id: 'accessory-headphones', slot: 'accessory', category: 'acessório', label: 'Fone colorido', emoji: '🎧', price: 80 },
     { id: 'accessory-backpack', slot: 'accessory', category: 'acessório', label: 'Mochila', emoji: '🎒', price: 65 },
+    { id: 'accessory-scarf', slot: 'accessory', category: 'acessório', label: 'Cachecol', emoji: '🧣', price: 45 },
+    { id: 'accessory-wand', slot: 'accessory', category: 'acessório', label: 'Varinha mágica', emoji: '🪄', price: 75 },
   ];
 
   const achievementCatalog = [
     { id: 'first-game', title: 'Primeira aventura', description: 'Termine seu primeiro jogo.', emoji: '🚀' },
-    { id: 'ten-correct', title: 'Mente afiada', description: 'Acerte 10 perguntas.', emoji: '🧠' },
+    { id: 'ten-correct', title: 'Mente afiada', description: 'Acerte 10 perguntas em uma aventura.', emoji: '🧠' },
     { id: 'coin-collector', title: 'Colecionador', description: 'Junte 100 moedas.', emoji: '★' },
+    { id: 'five-games', title: 'Viajante', description: 'Complete cinco aventuras.', emoji: '🧭' },
     { id: 'all-subjects', title: 'Explorador', description: 'Jogue os cinco minijogos.', emoji: '🗺️' },
+    { id: 'perfect-game', title: 'Precisão total', description: 'Termine uma aventura sem erros.', emoji: '🎯' },
+    { id: 'streak-master', title: 'Sequência brilhante', description: 'Acerte cinco questões seguidas.', emoji: '🔥' },
+    { id: 'speed-run', title: 'Raciocínio veloz', description: 'Conclua uma aventura em até 2 minutos.', emoji: '⚡' },
   ];
 
   function readJson(key, fallback) {
@@ -90,6 +106,7 @@
       email: String(player.email || '').trim(),
       turma: String(player.turma || '4º ano'),
       avatar: String(player.avatar || '🦊'),
+      accountType: player.accountType === 'outside' ? 'outside' : 'school',
       passwordHash: String(player.passwordHash || ''),
       coins: Number(player.coins || 0),
       lastPlayed: player.lastPlayed || new Date().toISOString(),
@@ -101,10 +118,50 @@
     return normalizePlayer(player);
   }
 
+  function getScopedStorageKey(key) {
+    const player = getPlayer();
+    return player?.email ? `${key}:${encodeURIComponent(player.email)}` : key;
+  }
+
+  function readScopedJson(key, fallback) {
+    const scopedKey = getScopedStorageKey(key);
+    if (scopedKey !== key) {
+      const migrationKey = `genios-migrated:${key}`;
+      const legacyValue = localStorage.getItem(key);
+      if (legacyValue && localStorage.getItem(migrationKey) !== 'true') {
+        localStorage.setItem(scopedKey, legacyValue);
+        localStorage.setItem(migrationKey, 'true');
+      }
+    }
+    return readJson(scopedKey, fallback);
+  }
+
+  function writeScopedJson(key, value) {
+    writeJson(getScopedStorageKey(key), value);
+  }
+
+  function getAccounts() {
+    const accounts = readJson(STORAGE_KEYS.accounts, null);
+    if (Array.isArray(accounts)) return accounts.map(normalizePlayer).filter(Boolean);
+
+    const legacyPlayer = normalizePlayer(readJson(STORAGE_KEYS.player, null));
+    const migratedAccounts = legacyPlayer?.email && legacyPlayer?.passwordHash ? [legacyPlayer] : [];
+    writeJson(STORAGE_KEYS.accounts, migratedAccounts);
+    return migratedAccounts;
+  }
+
   function setPlayer(player) {
     const normalized = normalizePlayer(player);
     if (!normalized || !normalized.nome) return null;
     writeJson(STORAGE_KEYS.player, normalized);
+
+    const accounts = getAccounts();
+    const accountIndex = accounts.findIndex((account) => account.email === normalized.email);
+    if (accountIndex >= 0) {
+      accounts[accountIndex] = { ...accounts[accountIndex], ...normalized };
+      writeJson(STORAGE_KEYS.accounts, accounts);
+    }
+
     return normalized;
   }
 
@@ -112,13 +169,13 @@
     localStorage.removeItem(STORAGE_KEYS.player);
   }
 
-  function registerUser({ nome, email, password, turma, avatar }) {
+  function registerUser({ nome, email, password, turma, avatar, accountType }) {
     const safeEmail = String(email || '').trim().toLowerCase();
     const safeName = String(nome || '').trim();
     if (!safeName || !safeEmail || !password) return { ok: false, message: 'Dados incompletos.' };
 
-    const existing = readJson(STORAGE_KEYS.player, null);
-    if (existing && existing.email && existing.email.toLowerCase() === safeEmail) {
+    const accounts = getAccounts();
+    if (accounts.some((account) => account.email?.toLowerCase() === safeEmail)) {
       return { ok: false, message: 'Este e-mail já está em uso.' };
     }
 
@@ -127,29 +184,28 @@
       email: safeEmail,
       turma: turma || '4º ano',
       avatar: avatar || '🦊',
+      accountType: accountType === 'outside' ? 'outside' : 'school',
       passwordHash: hashString(password),
       coins: 0,
       lastPlayed: new Date().toISOString(),
     };
 
+    accounts.push(profile);
+    writeJson(STORAGE_KEYS.accounts, accounts);
     writeJson(STORAGE_KEYS.player, profile);
     return { ok: true, profile };
   }
 
-  function loginUser({ email, password }) {
+  function loginUser({ email, password, accountType }) {
     const safeEmail = String(email || '').trim().toLowerCase();
-    const stored = readJson(STORAGE_KEYS.player, null);
-    if (!stored || !stored.email || stored.email.toLowerCase() !== safeEmail) {
-      return { ok: false, message: 'E-mail ou senha incorretos.' };
-    }
-
-    if (stored.passwordHash !== hashString(password)) {
+    const stored = getAccounts().find((account) => account.email?.toLowerCase() === safeEmail);
+    if (!stored || stored.passwordHash !== hashString(password) || (accountType && stored.accountType !== accountType)) {
       return { ok: false, message: 'E-mail ou senha incorretos.' };
     }
 
     const player = normalizePlayer(stored);
     localStorage.setItem('genios-session', 'true');
-    writeJson(STORAGE_KEYS.player, { ...player, lastPlayed: new Date().toISOString() });
+    setPlayer({ ...player, lastPlayed: new Date().toISOString() });
     return { ok: true, profile: player };
   }
 
@@ -173,22 +229,22 @@
   }
 
   function getUnlockedCosmetics() {
-    const saved = readJson(STORAGE_KEYS.cosmetics, ['starter']);
+    const saved = readScopedJson(STORAGE_KEYS.cosmetics, ['starter']);
     return Array.isArray(saved) ? saved : ['starter'];
   }
 
   function setUnlockedCosmetics(list) {
-    writeJson(STORAGE_KEYS.cosmetics, list);
+    writeScopedJson(STORAGE_KEYS.cosmetics, list);
   }
 
   function getSelectedCosmetic() {
-    return localStorage.getItem(STORAGE_KEYS.selectedCosmetic) || 'starter';
+    return localStorage.getItem(getScopedStorageKey(STORAGE_KEYS.selectedCosmetic)) || 'starter';
   }
 
   function setSelectedCosmetic(id) {
     const unlocked = getUnlockedCosmetics();
     if (!unlocked.includes(id)) return false;
-    localStorage.setItem(STORAGE_KEYS.selectedCosmetic, id);
+    localStorage.setItem(getScopedStorageKey(STORAGE_KEYS.selectedCosmetic), id);
     const player = getPlayer();
     if (player) {
       const nextAvatar = cosmeticsCatalog.find((item) => item.id === id)?.emoji || player.avatar || '🦊';
@@ -230,14 +286,14 @@
       outfit: 'outfit-basic',
       accessory: 'accessory-none',
     };
-    const saved = readJson(STORAGE_KEYS.character, defaultLook);
+    const saved = readScopedJson(STORAGE_KEYS.character, defaultLook);
     return { ...defaultLook, ...(saved && typeof saved === 'object' ? saved : {}) };
   }
 
   function equipCharacterItem(id) {
     const item = characterCatalog.find((entry) => entry.id === id);
     if (!item || !getCharacterUnlocks().includes(id)) return false;
-    writeJson(STORAGE_KEYS.character, { ...getEquippedCharacter(), [item.slot]: id });
+    writeScopedJson(STORAGE_KEYS.character, { ...getEquippedCharacter(), [item.slot]: id });
     if (item.slot === 'base') {
       const player = getPlayer();
       if (player) setPlayer({ ...player, avatar: item.emoji });
@@ -260,19 +316,43 @@
   }
 
   function getAchievements() {
-    return readJson(STORAGE_KEYS.achievements, []);
+    return readScopedJson(STORAGE_KEYS.achievements, []);
   }
 
   function unlockAchievement(id) {
     if (!achievementCatalog.some((item) => item.id === id)) return false;
     const current = getAchievements();
     if (current.includes(id)) return false;
-    writeJson(STORAGE_KEYS.achievements, [...current, id]);
+    writeScopedJson(STORAGE_KEYS.achievements, [...current, id]);
     return true;
   }
 
+  function getGameHistory() {
+    const history = readScopedJson(STORAGE_KEYS.gameHistory, []);
+    return Array.isArray(history) ? history : [];
+  }
+
+  function saveGameSession(session) {
+    const gameKeys = ['adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas'];
+    const validated = validateScore(session);
+    const entry = {
+      id: `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      gameKey: gameKeys.includes(session?.gameKey) ? session.gameKey : 'adicao',
+      points: validated.points,
+      correct: validated.correct,
+      wrong: validated.wrong,
+      seconds: Math.max(0, Math.floor(Number(session?.seconds) || 0)),
+      bestStreak: Math.max(0, Math.floor(Number(session?.bestStreak) || 0)),
+      answers: Array.isArray(session?.answers) ? session.answers.slice(0, 100) : [],
+      completedAt: new Date().toISOString(),
+    };
+    const history = [...getGameHistory(), entry].slice(-100);
+    writeScopedJson(STORAGE_KEYS.gameHistory, history);
+    return history;
+  }
+
   function getChallenges() {
-    return readJson(STORAGE_KEYS.challenges, []);
+    return readScopedJson(STORAGE_KEYS.challenges, []);
   }
 
   function createChallenge(challenge) {
@@ -285,7 +365,7 @@
     };
     if (!clean.title) return { ok: false, message: 'Digite um nome para o desafio.' };
     const challenges = [clean, ...getChallenges()].slice(0, 10);
-    writeJson(STORAGE_KEYS.challenges, challenges);
+    writeScopedJson(STORAGE_KEYS.challenges, challenges);
     return { ok: true, challenge: clean };
   }
 
@@ -297,12 +377,13 @@
   }
 
   function getRanking() {
-    const ranking = readJson(STORAGE_KEYS.ranking, defaultRanking);
+    const ranking = readScopedJson(STORAGE_KEYS.ranking, null);
     if (!Array.isArray(ranking) || ranking.length === 0) {
-      writeJson(STORAGE_KEYS.ranking, defaultRanking);
-      return [...defaultRanking];
+      const initialRanking = defaultRanking.map((item) => ({ ...item }));
+      writeScopedJson(STORAGE_KEYS.ranking, initialRanking);
+      return initialRanking;
     }
-    return ranking;
+    return ranking.map((item) => ({ ...item }));
   }
 
   function upsertScore(player, scoreData) {
@@ -334,7 +415,7 @@
       .filter((item) => Number(item.points) > 0)
       .sort((a, b) => Number(b.points) - Number(a.points));
 
-    writeJson(STORAGE_KEYS.ranking, sorted.slice(0, 10));
+    writeScopedJson(STORAGE_KEYS.ranking, sorted.slice(0, 10));
     return sorted.slice(0, 10);
   }
 
@@ -371,6 +452,8 @@
     buyCharacterItem,
     achievementCatalog,
     getAchievements,
+    getGameHistory,
+    saveGameSession,
     unlockAchievement,
     getChallenges,
     createChallenge,

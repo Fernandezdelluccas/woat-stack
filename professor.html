@@ -7,16 +7,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=10" />
 </head>
 <body>
 
   <header class="topbar">
     <div class="topbar__inner">
-      <a href="materias.html" class="brand">
+      <a href="index.html" class="brand">
         <span class="brand__mark">🧮</span> G&Ecirc;NIOS DO JOGO
       </a>
-      <nav class="nav">
+      <nav class="nav" id="teacherNavigation" hidden>
         <a href="materias.html">Matérias</a>
         <a href="ranking.html">Ranking</a>
       </nav>
@@ -50,6 +50,8 @@
 
           <button type="submit" class="btn btn--primary btn--block">Entrar</button>
         </form>
+
+        <button type="button" id="cancelProfessorLogin" class="btn btn--ghost btn--block" style="margin-top:10px;">Cancelar e voltar</button>
 
         <p class="hint" id="loginError" style="margin-top:16px; color: var(--color-danger-dark); display:none;">
           E-mail ou senha incorretos.
@@ -252,8 +254,8 @@
   <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
 
   <script src="js/nav.js"></script>
-  <script src="js/app-state.js?v=4"></script>
-  <script src="js/professor-auth.js"></script>
+  <script src="js/app-state.js?v=5"></script>
+  <script src="js/professor-auth.js?v=3"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const form = document.getElementById('challengeForm');
