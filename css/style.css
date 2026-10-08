@@ -139,6 +139,28 @@ body {
   background:
     linear-gradient(90deg, rgba(9, 24, 29, 0.24), rgba(8, 27, 29, 0.16) 55%, rgba(9, 24, 29, 0.28)),
     url('../img/Sala%20de%20Aula%20Divertida%20de%20Matem%C3%A1tica.png') center / cover fixed;
+  width: 100%;
+  overflow-x: clip;
+}
+
+.login-page .login-main,
+.login-page .login-card,
+.login-page #playerLoginForm,
+.login-page .field {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.login-page .login-card {
+  width: min(100%, 460px);
+}
+
+.login-page input:not([type="radio"]),
+.login-page select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .login-page::before {
@@ -463,8 +485,11 @@ select:focus-visible {
 }
 
 .field input[type="text"],
+.field input[type="password"],
 .field select {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   font-size: 1rem;
   padding: 14px 16px;
   border-radius: var(--radius-sm);
@@ -475,6 +500,7 @@ select:focus-visible {
 }
 
 .field input[type="text"]:focus,
+.field input[type="password"]:focus,
 .field select:focus {
   outline: none;
   border-color: var(--color-primary);
@@ -2213,25 +2239,45 @@ tbody tr:hover {
     min-height: var(--header-height);
   }
 
-  .login-main {
-    padding: 20px 12px;
+  .login-page .login-main {
+    width: 100%;
+    align-items: flex-start;
+    padding: 20px clamp(8px, 3vw, 16px) calc(112px + env(safe-area-inset-bottom));
   }
 
-  .login-card {
-    padding: 22px 18px;
+  .login-page .login-card {
+    width: 100%;
+    padding: clamp(14px, 4vw, 22px) clamp(12px, 4vw, 18px);
   }
 
-  .avatar-picker {
-    gap: 8px;
+  .login-page .avatar-picker {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-items: center;
+    gap: clamp(0px, 2vw, 8px);
+    padding-inline: 0;
   }
 
-  .avatar-option {
-    width: 78px;
-    height: 78px;
+  .login-page .avatar-option {
+    width: min(100%, 78px);
+    height: auto;
+    aspect-ratio: 1;
   }
 
-  .avatar-option__emoji {
-    font-size: 4.2rem;
+  .login-page .avatar-option__emoji {
+    font-size: clamp(2.8rem, 13vw, 4.2rem);
+  }
+
+  .login-page .login-switch__button {
+    min-width: 0;
+    padding-inline: clamp(4px, 2.5vw, 12px);
+    overflow-wrap: anywhere;
+  }
+
+  .login-page .login-help,
+  .login-page .login-note,
+  .login-page .login-device-note {
+    overflow-wrap: anywhere;
   }
 
   .activity-item {
