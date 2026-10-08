@@ -4,14 +4,21 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { buildQuestions, GAME_TYPES } from '../js/game.mjs';
 
-function createApp(initialData = {}) {
+function createApp(initialData = {}, validSchoolCode = 'CODIGO-DE-TESTE') {
   const storage = new Map(Object.entries(initialData));
   const localStorage = {
     getItem: (key) => storage.get(key) ?? null,
     setItem: (key, value) => storage.set(key, String(value)),
     removeItem: (key) => storage.delete(key),
   };
-  const window = {};
+  const window = {
+    supabaseClient: {
+      rpc: async (functionName, args) => ({
+        data: functionName === 'validate_school_access_code' && args.p_code === validSchoolCode,
+        error: null,
+      }),
+    },
+  };
   const source = fs.readFileSync(new URL('../js/app-state.js', import.meta.url), 'utf8');
   vm.runInNewContext(source, { window, localStorage, TextEncoder, Date, Math, JSON, Array });
   return window.GeniosApp;
@@ -26,8 +33,9 @@ function hashPassword(password) {
   return (hash >>> 0).toString(16);
 }
 
-test('perfis escolares e externos têm login e dados separados', () => {
+test('perfis escolares e externos têm login e dados separados', async () => {
   const app = createApp();
+  assert.equal((await app.authorizeSchoolEnrollment({ code: 'CODIGO-DE-TESTE', turma: '4º ano' })).ok, true);
   const school = app.registerUser({ nome: 'Aluna', password: '2580', turma: '4º ano', accountType: 'school' });
   const outside = app.registerUser({ nome: 'Visitante', password: '1357', turma: 'Visitante', accountType: 'outside' });
   assert.equal(school.ok, true);
@@ -61,13 +69,38 @@ test('perfil legado sem tipo continua entrando como conta escolar', () => {
   assert.equal(app.loginUser({ email: profile.email, password: 'senha123', accountType: 'school' }).ok, true);
 });
 
-test('cadastro de criança exige PIN de quatro dígitos e evita apelidos duplicados na turma', () => {
+test('cadastro de criança exige código da escola e PIN de quatro dígitos', async () => {
   const app = createApp();
   assert.equal(app.registerUser({ nome: 'Bia', password: '12x4', turma: '3º ano', accountType: 'school' }).ok, false);
+  assert.equal((await app.authorizeSchoolEnrollment({ code: 'ERRADO', turma: '3º ano' })).ok, false);
+  assert.equal(app.registerUser({ nome: 'Bia', password: '2468', turma: '3º ano', accountType: 'school' }).ok, false);
+  assert.equal((await app.authorizeSchoolEnrollment({ code: 'CODIGO-DE-TESTE', turma: '3º ano' })).ok, true);
   assert.equal(app.registerUser({ nome: 'Bia', password: '2468', turma: '3º ano', accountType: 'school' }).ok, true);
+  assert.equal((await app.authorizeSchoolEnrollment({ code: 'CODIGO-DE-TESTE', turma: '3º ano' })).ok, true);
   assert.equal(app.registerUser({ nome: 'Bia', password: '9753', turma: '3º ano', accountType: 'school' }).ok, false);
   assert.equal(app.loginUser({ nome: 'Bia', turma: '3º ano', password: '2468', accountType: 'school' }).ok, true);
   assert.equal(app.loginUser({ nome: 'Bia', turma: '3º ano', password: '1111', accountType: 'school' }).ok, false);
+});
+
+test('ranking local aceita somente escolares ativos e compartilha apenas com a turma', async () => {
+  const app = createApp();
+  await app.authorizeSchoolEnrollment({ code: 'CODIGO-DE-TESTE', turma: '4º ano' });
+  const school = app.registerUser({ nome: 'Aluna A', password: '2580', turma: '4º ano', accountType: 'school' });
+  await app.authorizeSchoolEnrollment({ code: 'CODIGO-DE-TESTE', turma: '4º ano' });
+  const classmate = app.registerUser({ nome: 'Aluno B', password: '1357', turma: '4º ano', accountType: 'school' });
+  const guest = app.registerUser({ nome: 'Visitante', password: '2468', accountType: 'outside' });
+
+  app.loginUser({ nome: 'Aluna A', turma: '4º ano', password: '2580', accountType: 'school' });
+  app.upsertScore(school.profile, { points: 80 });
+  app.loginUser({ nome: 'Aluno B', turma: '4º ano', password: '1357', accountType: 'school' });
+  app.upsertScore(classmate.profile, { points: 70 });
+  assert.equal(app.getRanking().length, 2);
+
+  app.loginUser({ nome: 'Visitante', password: '2468', accountType: 'outside' });
+  assert.deepEqual(Array.from(app.getRanking()), []);
+  assert.deepEqual(Array.from(app.upsertScore(guest.profile, { points: 9999 })), []);
+  app.loginUser({ nome: 'Aluna A', turma: '4º ano', password: '2580', accountType: 'school' });
+  assert.deepEqual(app.getRanking().map((entry) => entry.name), ['Aluna A', 'Aluno B']);
 });
 
 test('cada operação gera exemplos práticos e contextos variados', () => {
@@ -134,9 +167,9 @@ test('login do professor esconde matérias e sai para a tela inicial', () => {
   assert.equal(redirect, 'index.html');
 });
 
-test('login infantil oferece acesso por apelido e PIN sem campo de e-mail', () => {
+test('login infantil exige código apenas ao cadastrar perfil escolar e nunca mostra e-mail', () => {
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  for (const marker of ['data-account-type="school"', 'data-account-type="outside"', 'data-auth-mode="login"', 'data-auth-mode="register"', 'id="loginFeedback"', 'autocomplete="nickname"', 'inputmode="numeric"']) {
+  for (const marker of ['data-account-type="school"', 'data-account-type="outside"', 'data-auth-mode="login"', 'data-auth-mode="register"', 'id="loginFeedback"', 'autocomplete="nickname"', 'inputmode="numeric"', 'id="schoolCodeField"', 'authorizeSchoolEnrollment', 'supabase-js@2']) {
     assert.ok(html.includes(marker), `controle ausente: ${marker}`);
   }
   assert.ok(!html.includes('id="email"'), 'a tela infantil não deve pedir e-mail');
@@ -144,4 +177,18 @@ test('login infantil oferece acesso por apelido e PIN sem campo de e-mail', () =
   const inlineScripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
   assert.equal(inlineScripts.length, 1);
   assert.doesNotThrow(() => new Function(inlineScripts[0][1]));
+});
+
+test('códigos escolares e tabelas de ranking têm proteção server-side no schema', () => {
+  const schema = fs.readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8');
+  for (const marker of [
+    'school_access_codes',
+    'validate_school_access_code',
+    'security definer',
+    'alter table school_access_codes enable row level security',
+    'alter table pontuacoes enable row level security',
+    'revoke all on table rankings, pontuacoes from anon, authenticated',
+  ]) {
+    assert.ok(schema.toLowerCase().includes(marker.toLowerCase()), `proteção ausente: ${marker}`);
+  }
 });

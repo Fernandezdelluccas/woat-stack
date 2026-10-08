@@ -1,3 +1,5 @@
+create extension if not exists pgcrypto;
+
 create table if not exists profiles (
   id uuid primary key default gen_random_uuid(),
   nome text not null,
@@ -32,8 +34,11 @@ create table if not exists rankings (
   profile_id uuid references profiles(id) on delete cascade,
   score integer not null default 0 check (score >= 0),
   turma text not null,
+  account_type text not null default 'school' check (account_type = 'school'),
   updated_at timestamptz default now()
 );
+
+alter table rankings add column if not exists account_type text not null default 'school';
 
 create index if not exists idx_rankings_score on rankings(score desc);
 create unique index if not exists idx_rankings_profile_unique on rankings(profile_id) where profile_id is not null;
@@ -43,11 +48,14 @@ create table if not exists pontuacoes (
   profile_id uuid references profiles(id) on delete cascade,
   nome_aluno text not null,
   turma text not null,
+  account_type text not null default 'school' check (account_type = 'school'),
   professor text not null default '',
   pontos integer not null default 0 check (pontos >= 0),
   updated_at timestamptz not null default now(),
   unique (nome_aluno, turma, professor)
 );
+
+alter table pontuacoes add column if not exists account_type text not null default 'school';
 
 create table if not exists respostas (
   id uuid primary key default gen_random_uuid(),
@@ -99,6 +107,53 @@ create table if not exists class_challenges (
   target integer not null default 5 check (target between 1 and 20),
   created_at timestamptz not null default now()
 );
+
+create table if not exists school_access_codes (
+  code_hash text primary key,
+  school_name text not null,
+  turma text not null,
+  enabled boolean not null default true,
+  max_uses integer not null default 100 check (max_uses > 0),
+  used_count integer not null default 0 check (used_count >= 0),
+  expires_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table school_access_codes enable row level security;
+revoke all on table school_access_codes from anon, authenticated;
+
+create or replace function public.validate_school_access_code(p_code text, p_turma text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, extensions
+as $function$
+declare
+  code_accepted boolean;
+begin
+  if char_length(btrim(coalesce(p_code, ''))) < 8 or btrim(coalesce(p_turma, '')) = '' then
+    return false;
+  end if;
+
+  update public.school_access_codes
+     set used_count = used_count + 1
+   where code_hash = encode(digest(upper(btrim(p_code)), 'sha256'), 'hex')
+     and turma = btrim(p_turma)
+     and enabled = true
+     and used_count < max_uses
+     and (expires_at is null or expires_at > now())
+  returning true into code_accepted;
+
+  return coalesce(code_accepted, false);
+end;
+$function$;
+
+revoke all on function public.validate_school_access_code(text, text) from public;
+grant execute on function public.validate_school_access_code(text, text) to anon, authenticated;
+
+alter table rankings enable row level security;
+alter table pontuacoes enable row level security;
+revoke all on table rankings, pontuacoes from anon, authenticated;
 
 create index if not exists idx_pontuacoes_turma_score on pontuacoes(turma, pontos desc);
 create index if not exists idx_pontuacoes_professor_turma on pontuacoes(professor, turma);

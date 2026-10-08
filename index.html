@@ -59,6 +59,11 @@
           </select>
         </div>
 
+        <div class="field school-only" id="schoolCodeField">
+          <label for="schoolCode">Código da escola</label>
+          <input type="password" id="schoolCode" name="schoolCode" placeholder="Peça o código ao professor" autocomplete="off" maxlength="64" />
+        </div>
+
         <div class="field register-only" id="avatarField">
           <label>Escolha seu avatar</label>
           <div class="avatar-picker" role="radiogroup" aria-label="Avatar">
@@ -97,7 +102,9 @@
 
   <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
 
-  <script src="js/app-state.js?v=6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabaseClient.js?v=1"></script>
+  <script src="js/app-state.js?v=8"></script>
   <script src="js/nav.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -111,8 +118,10 @@
       const nomeInput = document.getElementById('nome');
       const senhaInput = document.getElementById('senha');
       const turmaInput = document.getElementById('turma');
+      const schoolCodeInput = document.getElementById('schoolCode');
       const nameField = document.getElementById('nameField');
       const classField = document.getElementById('classField');
+      const schoolCodeField = document.getElementById('schoolCodeField');
       const avatarField = document.getElementById('avatarField');
       let accountType = 'school';
       let authMode = 'register';
@@ -125,11 +134,14 @@
       const updateFormMode = () => {
         const isRegistering = authMode === 'register';
         const needsClass = accountType === 'school';
+        const needsSchoolCode = isRegistering && accountType === 'school';
         nameField.hidden = false;
         avatarField.hidden = !isRegistering;
         classField.hidden = !needsClass;
+        schoolCodeField.hidden = !needsSchoolCode;
         nomeInput.required = true;
         turmaInput.required = needsClass;
+        schoolCodeInput.required = needsSchoolCode;
         senhaInput.autocomplete = isRegistering ? 'new-password' : 'current-password';
         if (isRegistering) {
           senhaInput.setAttribute('pattern', '[0-9]{4}');
@@ -137,7 +149,9 @@
           senhaInput.removeAttribute('pattern');
         }
         accountTypeDescription.textContent = accountType === 'school'
-          ? 'Na escola, informe seu nome, sua turma e seu PIN.'
+          ? isRegistering
+            ? 'Peça ao professor o código da sua turma para criar um perfil escolar.'
+            : 'Entre com seu nome, sua turma e seu PIN.'
           : 'Para entrar como visitante, informe seu nome e seu PIN.';
         loginSubmit.textContent = isRegistering
           ? accountType === 'school' ? 'Criar perfil escolar' : 'Criar perfil de visitante'
@@ -176,7 +190,7 @@
         });
       });
 
-      form.addEventListener('submit', (event) => {
+      form.addEventListener('submit', async (event) => {
         event.preventDefault();
 
         const nome = nomeInput.value.trim();
@@ -193,6 +207,17 @@
         if (isRegistering && !/^\d{4}$/.test(senha)) {
           showFeedback('Crie um PIN com exatamente 4 números.');
           return;
+        }
+
+        if (isRegistering && accountType === 'school') {
+          const authorization = await window.GeniosApp.authorizeSchoolEnrollment({
+            code: schoolCodeInput.value,
+            turma,
+          });
+          if (!authorization.ok) {
+            showFeedback(authorization.message);
+            return;
+          }
         }
 
         if (!isRegistering && senha.length < 4) {

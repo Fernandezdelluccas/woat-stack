@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=10" />
+  <link rel="stylesheet" href="css/style.css?v=11" />
 </head>
 <body>
 
@@ -31,7 +31,7 @@
       <div class="page-head">
         <span class="eyebrow">Competição amigável</span>
         <h1>Ranking de Matemática</h1>
-        <p>Continue jogando e acertando para subir de posição!</p>
+        <p id="rankingMessage">Ranking interno da turma.</p>
       </div>
 
       <div class="table-wrap">
@@ -46,54 +46,18 @@
           </thead>
           <tbody>
             <tr>
-              <td class="rank-pos rank-pos--gold">🥇 1º</td>
-              <td class="player-cell"><span class="player-cell__avatar">🦄</span> Sofia</td>
-              <td>4º ano</td>
-              <td>980</td>
-            </tr>
-            <tr>
-              <td class="rank-pos rank-pos--silver">🥈 2º</td>
-              <td class="player-cell"><span class="player-cell__avatar">🤖</span> Pedro</td>
-              <td>4º ano</td>
-              <td>915</td>
-            </tr>
-            <tr>
-              <td class="rank-pos rank-pos--bronze">🥉 3º</td>
-              <td class="player-cell"><span class="player-cell__avatar">🦊</span> Ana</td>
-              <td>3º ano</td>
-              <td>870</td>
-            </tr>
-            <tr>
-              <td class="rank-pos">4º</td>
-              <td class="player-cell"><span class="player-cell__avatar">🦕</span> Lucas</td>
-              <td>3º ano</td>
-              <td>760</td>
-            </tr>
-            <tr>
-              <td class="rank-pos">5º</td>
-              <td class="player-cell"><span class="player-cell__avatar">🐱</span> Beatriz</td>
-              <td>5º ano</td>
-              <td>705</td>
-            </tr>
-            <tr>
-              <td class="rank-pos">6º</td>
-              <td class="player-cell"><span class="player-cell__avatar">🦉</span> Enzo</td>
-              <td>2º ano</td>
-              <td>640</td>
+              <td colspan="4" class="hint text-center">Carregando ranking da turma...</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <p class="hint text-center" style="margin-top:16px;">
-        Dados de exemplo — o cálculo de pontuação em tempo real será conectado ao módulo de lógica do back-end.
-      </p>
     </div>
   </main>
 
   <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
 
-  <script src="js/app-state.js?v=5"></script>
+  <script src="js/app-state.js?v=8"></script>
   <script src="js/nav.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -106,8 +70,19 @@
       const rankingBody = document.querySelector('.ranking-table tbody');
       if (!rankingBody) return;
 
+      if (!player || player.accountType !== 'school') {
+        rankingBody.innerHTML = '<tr><td colspan="4" class="hint text-center">O ranking é exclusivo para perfis da escola.</td></tr>';
+        document.getElementById('rankingMessage').textContent = 'Entre com um perfil escolar para ver a classificação da turma.';
+        return;
+      }
+
       const ranking = window.GeniosApp.getRanking();
       rankingBody.innerHTML = '';
+
+      if (ranking.length === 0) {
+        rankingBody.innerHTML = '<tr><td colspan="4" class="hint text-center">Sua turma ainda não tem pontuações. Comece uma aventura!</td></tr>';
+        return;
+      }
 
       ranking.forEach((playerItem, index) => {
         const row = document.createElement('tr');

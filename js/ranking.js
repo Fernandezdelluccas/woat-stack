@@ -10,12 +10,21 @@
     if (!tbody || !window.supabaseClient) return;
 
     const perfil = window.PerfilSession ? window.PerfilSession.getPerfilAtivo() : null;
+    const jogador = window.GeniosApp?.getPlayer?.();
+
+    if (!jogador || jogador.accountType !== 'school') {
+      tbody.innerHTML = '<tr><td colspan="4" class="hint text-center">O ranking é exclusivo para perfis da escola.</td></tr>';
+      if (chip) chip.style.display = 'none';
+      return;
+    }
 
     let query = window.supabaseClient
       .from('pontuacoes')
-      .select('nome_aluno, turma, pontos')
+      .select('nome_aluno, turma, pontos, account_type')
       .order('pontos', { ascending: false })
       .limit(50);
+
+    query = query.eq('account_type', 'school');
 
     if (perfil && perfil.serie) {
       query = query.eq('turma', perfil.serie);

@@ -13,15 +13,6 @@
     challenges: 'genios-challenges',
   };
 
-  const defaultRanking = [
-    { name: 'Sofia', avatar: '🦄', turma: '4º ano', points: 980 },
-    { name: 'Pedro', avatar: '🤖', turma: '4º ano', points: 915 },
-    { name: 'Ana', avatar: '🦊', turma: '3º ano', points: 870 },
-    { name: 'Lucas', avatar: '🦕', turma: '3º ano', points: 760 },
-    { name: 'Beatriz', avatar: '🐱', turma: '5º ano', points: 705 },
-    { name: 'Enzo', avatar: '🦉', turma: '2º ano', points: 640 },
-  ];
-
   const cosmeticsCatalog = [
     { id: 'starter', label: 'Mascote base', emoji: '🦊', price: 0, unlocks: ['🦊'] },
     { id: 'wizard', label: 'Chapéu mágico', emoji: '🧢', price: 40, unlocks: ['🧢'] },
@@ -74,6 +65,7 @@
     { id: 'streak-master', title: 'Sequência brilhante', description: 'Acerte cinco questões seguidas.', emoji: '🔥' },
     { id: 'speed-run', title: 'Raciocínio veloz', description: 'Conclua uma aventura em até 2 minutos.', emoji: '⚡' },
   ];
+  let schoolEnrollmentPermit = null;
 
   function readJson(key, fallback) {
     try {
@@ -169,6 +161,35 @@
     localStorage.removeItem(STORAGE_KEYS.player);
   }
 
+  async function authorizeSchoolEnrollment({ code, turma }) {
+    const cleanCode = String(code || '').trim();
+    const cleanClass = String(turma || '').trim();
+    if (!cleanCode || !cleanClass) {
+      return { ok: false, message: 'Peça ao professor o código da sua turma.' };
+    }
+    if (!window.supabaseClient) {
+      return { ok: false, message: 'A validação da escola está indisponível. Peça ajuda ao professor.' };
+    }
+
+    const { data, error } = await window.supabaseClient.rpc('validate_school_access_code', {
+      p_code: cleanCode,
+      p_turma: cleanClass,
+    });
+    if (error) {
+      console.error('Erro ao validar código escolar:', error.message);
+      return { ok: false, message: 'Não foi possível validar o código agora. Tente novamente.' };
+    }
+    if (data !== true) {
+      return { ok: false, message: 'Código da escola incorreto ou não liberado para esta turma.' };
+    }
+
+    schoolEnrollmentPermit = {
+      turma: cleanClass,
+      expiresAt: Date.now() + 60_000,
+    };
+    return { ok: true };
+  }
+
   function registerUser({ nome, email, password, turma, avatar, accountType }) {
     const safeName = String(nome || '').trim();
     const safeAccountType = accountType === 'outside' ? 'outside' : 'school';
@@ -178,6 +199,15 @@
     }
     if (!/^\d{4}$/.test(String(password))) {
       return { ok: false, message: 'O PIN precisa ter exatamente 4 números.' };
+    }
+    if (safeAccountType === 'school') {
+      const permitIsValid = schoolEnrollmentPermit
+        && schoolEnrollmentPermit.turma === safeClass
+        && schoolEnrollmentPermit.expiresAt >= Date.now();
+      schoolEnrollmentPermit = null;
+      if (!permitIsValid) {
+        return { ok: false, message: 'Peça ao professor o código da sua turma antes de criar o perfil.' };
+      }
     }
 
     const identity = `${safeAccountType}|${safeName.toLocaleLowerCase('pt-BR')}|${safeClass.toLocaleLowerCase('pt-BR')}`;
@@ -403,16 +433,31 @@
   }
 
   function getRanking() {
-    const ranking = readScopedJson(STORAGE_KEYS.ranking, null);
-    if (!Array.isArray(ranking) || ranking.length === 0) {
-      const initialRanking = defaultRanking.map((item) => ({ ...item }));
-      writeScopedJson(STORAGE_KEYS.ranking, initialRanking);
-      return initialRanking;
+    const player = getPlayer();
+    if (!player || player.accountType !== 'school') return [];
+
+    const rankingKey = `${STORAGE_KEYS.ranking}:school:${encodeURIComponent(player.turma)}`;
+    const savedRanking = readJson(rankingKey, null);
+    if (!Array.isArray(savedRanking)) {
+      const oldRanking = readJson(getScopedStorageKey(STORAGE_KEYS.ranking), []);
+      const previousPlayerScore = Array.isArray(oldRanking)
+        ? oldRanking.filter((item) => item.name === player.nome && item.turma === player.turma)
+        : [];
+      writeJson(rankingKey, previousPlayerScore);
+      return previousPlayerScore;
     }
-    return ranking.map((item) => ({ ...item }));
+    return savedRanking.map((item) => ({ ...item }));
   }
 
   function upsertScore(player, scoreData) {
+    const activePlayer = getPlayer();
+    if (
+      !activePlayer
+      || activePlayer.accountType !== 'school'
+      || activePlayer.email !== player?.email
+    ) return [];
+
+    player = activePlayer;
     const ranking = getRanking();
     const validated = validateScore(scoreData);
     const entry = {
@@ -441,7 +486,8 @@
       .filter((item) => Number(item.points) > 0)
       .sort((a, b) => Number(b.points) - Number(a.points));
 
-    writeScopedJson(STORAGE_KEYS.ranking, sorted.slice(0, 10));
+    const rankingKey = `${STORAGE_KEYS.ranking}:school:${encodeURIComponent(player.turma)}`;
+    writeJson(rankingKey, sorted.slice(0, 10));
     return sorted.slice(0, 10);
   }
 
@@ -486,5 +532,6 @@
     validateScore,
     setTeacherSession,
     isTeacherLoggedIn,
+    authorizeSchoolEnrollment,
   };
 })();

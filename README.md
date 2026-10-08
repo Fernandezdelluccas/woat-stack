@@ -9,7 +9,7 @@ npm install
 npm start
 ```
 
-Abra `http://localhost:3000`. Para rodar a suíte de testes:
+Abra `http://localhost:3000`. Para rodar os testes:
 
 ```bash
 npm test
@@ -17,10 +17,26 @@ npm test
 
 ## Publicar no Vercel
 
-Use a raiz do repositório como Root Directory, Framework Preset `Other` e deixe Build Command e Output Directory vazios. O projeto não precisa de etapa de build.
+Use a raiz do repositório como Root Directory, Framework Preset `Other` e deixe Build Command e Output Directory vazios.
 
-## Dados e autenticação
+## Acesso escolar e visitante
 
-As crianças entram com nome/apelido e PIN de quatro dígitos; perfis escolares também usam a turma. O acesso de visitante não pede turma. Os perfis, pontuações, sessões, desafios, cosméticos e conquistas ficam no `localStorage` deste navegador e dispositivo. As opções “Da escola” e “De fora” separam os tipos de perfil na interface, mas não verificam vínculo escolar e não sincronizam contas entre dispositivos. Perfis antigos ainda podem entrar com a senha já cadastrada.
+Crianças entram com nome/apelido e PIN de quatro dígitos. O perfil escolar também exige turma e um código privado emitido pelo professor; esse código é validado no Supabase antes de criar o perfil. Sem o schema e a função RPC, o cadastro escolar falha fechado. Visitantes não pedem turma e não consultam nem pontuam no ranking interno.
 
-O arquivo `supabase/schema.sql` prepara tabelas para perfis, sessões, respostas, pontuações e progresso. Para persistência remota real, aplique o schema no Supabase, conecte o cliente nas páginas e configure Supabase Auth e políticas RLS antes de permitir gravações públicas. A chave `anon` do cliente não substitui autenticação nem autorização.
+Para habilitar o cadastro escolar:
+
+1. Aplique `supabase/schema.sql` no SQL Editor do Supabase.
+2. Gere um código aleatório longo por turma e execute, substituindo os valores:
+
+```sql
+insert into public.school_access_codes (code_hash, school_name, turma)
+values (
+  encode(digest(upper('CODIGO-SECRETO-LONGO-DA-TURMA'), 'sha256'), 'hex'),
+  'Nome da escola',
+  '4º ano'
+);
+```
+
+3. Entregue o código somente aos alunos daquela turma. Cada código permite até 100 cadastros e pode ser desativado na tabela `school_access_codes`.
+
+Os perfis, partidas, cosméticos, desafios e conquistas ainda são guardados neste navegador e dispositivo; não há sincronização remota de contas. Pontuações remotas estão fechadas para acesso anônimo até a configuração de autenticação e políticas RLS por aluno/turma. A chave `anon` do Supabase é pública e não deve ser usada como única autorização.
