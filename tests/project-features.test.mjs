@@ -155,6 +155,15 @@ test('personalização não oferece roupas e mantém conquistas ampliadas', () =
   }
 });
 
+test('pet da loja levita suavemente e respeita movimento reduzido', () => {
+  const html = fs.readFileSync(new URL('../materias.html', import.meta.url), 'utf8');
+  const css = fs.readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  assert.ok(html.includes('class="character-preview__float"'));
+  assert.ok(css.includes('@keyframes studioPetFloat'));
+  assert.ok(css.includes('@keyframes studioPetShadow'));
+  assert.ok(css.includes('.character-preview__float,\n  .character-preview::after'));
+});
+
 test('login do professor esconde matérias e sai para a tela inicial', () => {
   class Element {
     constructor() { this.style = {}; this.value = ''; this.handlers = {}; this.hidden = false; }

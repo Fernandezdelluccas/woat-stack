@@ -1596,13 +1596,25 @@ tbody tr:hover {
   bottom: 72px;
   border-radius: 50%;
   background: rgba(22, 28, 48, 0.18);
+  animation: studioPetShadow 3.2s ease-in-out infinite;
+}
+
+.character-preview__float {
+  position: relative;
+  z-index: 1;
+  width: 190px;
+  height: 190px;
+  flex: 0 0 190px;
+  transform-origin: center;
+  will-change: transform;
+  animation: studioPetFloat 3.2s cubic-bezier(0.42, 0, 0.58, 1) infinite;
 }
 
 .character-preview__stage {
   position: relative;
   width: 190px;
   height: 190px;
-  z-index: 1;
+  z-index: 2;
 }
 
 .character-preview__stage.is-reacting {
@@ -2121,6 +2133,16 @@ tbody tr:hover {
   100% { transform: scale(1) rotate(0); }
 }
 
+@keyframes studioPetFloat {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-12px) rotate(1deg); }
+}
+
+@keyframes studioPetShadow {
+  0%, 100% { opacity: 0.2; transform: scaleX(1); }
+  50% { opacity: 0.1; transform: scaleX(0.78); }
+}
+
 @keyframes studioBubblePop {
   0% { opacity: 0.5; transform: scale(0.92); }
   55% { opacity: 1; transform: scale(1.05); }
@@ -2275,6 +2297,11 @@ tbody tr:hover {
   .game-companion__avatar {
     animation: companionFloat 2.6s ease-in-out infinite !important;
     animation-iteration-count: infinite !important;
+  }
+
+  .character-preview__float,
+  .character-preview::after {
+    animation: none !important;
   }
 
   .avatar-option,
