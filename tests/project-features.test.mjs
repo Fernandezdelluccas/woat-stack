@@ -174,6 +174,15 @@ test('pergunta e mascote ficam lado a lado em telas largas e empilham no celular
   assert.equal(css.includes('.game-companion {\n  position: absolute'), false);
 });
 
+test('exemplo prático visual tem ícone e grupos ampliados que podem quebrar linha', () => {
+  const css = fs.readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  assert.ok(css.includes('grid-template-areas: "icon groups" "caption caption"'));
+  assert.ok(css.includes('min-height: 154px'));
+  assert.ok(css.includes('font-size: 3.1rem'));
+  assert.ok(css.includes('overflow-wrap: anywhere'));
+  assert.ok(css.includes('white-space: normal'));
+});
+
 test('login do professor volta à página interna de origem ao cancelar ou usar Esc', () => {
   class Element {
     constructor() { this.style = {}; this.value = ''; this.handlers = {}; this.hidden = false; }
