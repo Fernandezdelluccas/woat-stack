@@ -4,8 +4,8 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { buildQuestions, GAME_TYPES } from '../js/game.mjs';
 
-function createApp(initialData = {}, validSchoolCode = 'CODIGO-DE-TESTE') {
-  const storage = new Map(Object.entries(initialData));
+function createApp(initialData = {}, validSchoolCode = 'CODIGO-DE-TESTE', sharedStorage = null) {
+  const storage = sharedStorage || new Map(Object.entries(initialData));
   const localStorage = {
     getItem: (key) => storage.get(key) ?? null,
     setItem: (key, value) => storage.set(key, String(value)),
@@ -82,6 +82,22 @@ test('cadastro de criança exige código da escola e PIN de quatro dígitos', as
   assert.equal(app.loginUser({ nome: 'Bia', turma: '3º ano', password: '1111', accountType: 'school' }).ok, false);
 });
 
+test('código provisório habilita escola e o PIN do aluno sobrevive a recarga', async () => {
+  const storage = new Map();
+  const firstVisit = createApp({}, 'CODIGO-DE-TESTE', storage);
+  assert.equal((await firstVisit.authorizeSchoolEnrollment({ code: 'escola2026', turma: '5º ano' })).ok, true);
+  const registered = firstVisit.registerUser({ nome: 'Pedro', password: '4826', turma: '5º ano', accountType: 'school' });
+  assert.equal(registered.ok, true);
+  const visitor = firstVisit.registerUser({ nome: 'Convidada', password: '7391', accountType: 'outside' });
+  assert.equal(visitor.ok, true);
+
+  const reloadedApp = createApp({}, 'CODIGO-DE-TESTE', storage);
+  assert.equal(reloadedApp.loginUser({ nome: 'Pedro', turma: '5º ano', password: '4826', accountType: 'school' }).ok, true);
+  assert.equal(reloadedApp.getPlayer().nome, 'Pedro');
+  assert.equal(reloadedApp.loginUser({ nome: 'Convidada', password: '7391', accountType: 'outside' }).ok, true);
+  assert.equal(reloadedApp.getPlayer().accountType, 'outside');
+});
+
 test('ranking local aceita somente escolares ativos e compartilha apenas com a turma', async () => {
   const app = createApp();
   await app.authorizeSchoolEnrollment({ code: 'CODIGO-DE-TESTE', turma: '4º ano' });
@@ -115,9 +131,12 @@ test('cada operação gera exemplos práticos e contextos variados', () => {
   }
 });
 
-test('catálogo contém roupas visíveis e conquistas ampliadas', () => {
+test('personalização não oferece roupas e mantém conquistas ampliadas', () => {
   const app = createApp();
-  assert.ok(app.characterCatalog.some((item) => item.category === 'roupa' && item.id === 'outfit-cape'));
+  assert.equal(app.characterCatalog.some((item) => item.category === 'roupa'), false);
+  const materials = fs.readFileSync(new URL('../materias.html', import.meta.url), 'utf8');
+  assert.equal(materials.includes('data-category="roupa"'), false);
+  assert.equal(materials.includes('characterOutfit'), false);
   for (const id of ['first-game', 'five-games', 'all-subjects', 'perfect-game', 'streak-master', 'speed-run']) {
     assert.ok(app.achievementCatalog.some((achievement) => achievement.id === id));
   }

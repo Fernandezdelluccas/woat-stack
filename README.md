@@ -21,9 +21,9 @@ Use a raiz do repositório como Root Directory, Framework Preset `Other` e deixe
 
 ## Acesso escolar e visitante
 
-Crianças entram com nome/apelido e PIN de quatro dígitos. O perfil escolar também exige turma e um código privado emitido pelo professor; esse código é validado no Supabase antes de criar o perfil. Sem o schema e a função RPC, o cadastro escolar falha fechado. Visitantes não pedem turma e não consultam nem pontuam no ranking interno.
+Crianças entram com nome/apelido e PIN de quatro dígitos. O perfil escolar também pede turma e o código provisório `ESCOLA2026`; o cadastro visitante não pede código. Este código está no JavaScript público e serve apenas para demonstração: qualquer pessoa que inspecione o site pode descobri-lo, então não use como controle real de acesso. Visitantes não consultam nem pontuam no ranking interno.
 
-Para habilitar o cadastro escolar:
+Para substituir o código provisório por códigos privados verificados pelo Supabase:
 
 1. Aplique `supabase/schema.sql` no SQL Editor do Supabase.
 2. Gere um código aleatório longo por turma e execute, substituindo os valores:

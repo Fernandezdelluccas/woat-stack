@@ -1495,12 +1495,6 @@ tbody tr:hover {
   padding-top: 18px;
 }
 
-.character-preview__outfit {
-  z-index: 2;
-  padding-top: 122px;
-  font-size: 3.5rem;
-}
-
 .character-preview__hair {
   font-size: 4.4rem;
   padding-bottom: 112px;
