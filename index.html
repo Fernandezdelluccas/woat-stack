@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=11" />
+  <link rel="stylesheet" href="css/style.css?v=12" />
   <style>
     body { justify-content: center; }
     .login-main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 32px 16px; }
@@ -91,6 +91,15 @@
         <p class="form-feedback" id="loginFeedback" role="alert" hidden></p>
         <button type="submit" class="btn btn--primary btn--block" id="loginSubmit">Criar perfil e jogar</button>
       </form>
+
+      <details class="login-help">
+        <summary>Quais dados devo usar para entrar?</summary>
+        <ul>
+          <li><strong>Aluno da escola:</strong> nome e PIN escolhidos no cadastro; código da escola <code>ESCOLA2026</code>.</li>
+          <li><strong>Visitante:</strong> nome e PIN escolhidos ao criar o perfil.</li>
+          <li><strong>Professor:</strong> e-mail <code>professor@escola.com</code> e senha <code>123456</code>.</li>
+        </ul>
+      </details>
 
       <p class="hint login-device-note">Novo perfil: escolha um PIN de 4 números. Se já tem perfil, use a senha que cadastrou antes.</p>
 

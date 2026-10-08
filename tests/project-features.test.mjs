@@ -188,7 +188,7 @@ test('login do professor esconde matérias e sai para a tela inicial', () => {
 
 test('login infantil exige código apenas ao cadastrar perfil escolar e nunca mostra e-mail', () => {
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  for (const marker of ['data-account-type="school"', 'data-account-type="outside"', 'data-auth-mode="login"', 'data-auth-mode="register"', 'id="loginFeedback"', 'autocomplete="nickname"', 'inputmode="numeric"', 'id="schoolCodeField"', 'authorizeSchoolEnrollment', 'supabase-js@2']) {
+  for (const marker of ['data-account-type="school"', 'data-account-type="outside"', 'data-auth-mode="login"', 'data-auth-mode="register"', 'id="loginFeedback"', 'autocomplete="nickname"', 'inputmode="numeric"', 'id="schoolCodeField"', 'authorizeSchoolEnrollment', 'supabase-js@2', 'ESCOLA2026', 'professor@escola.com', '123456']) {
     assert.ok(html.includes(marker), `controle ausente: ${marker}`);
   }
   assert.ok(!html.includes('id="email"'), 'a tela infantil não deve pedir e-mail');
