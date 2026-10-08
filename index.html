@@ -113,7 +113,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabaseClient.js?v=1"></script>
-  <script src="js/app-state.js?v=9"></script>
+  <script src="js/app-state.js?v=10"></script>
   <script src="js/nav.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -229,6 +229,20 @@
           }
         }
 
+        if (
+          !isRegistering
+          && accountType === 'school'
+          && senha.toUpperCase() === window.GeniosApp.provisionalSchoolCode
+        ) {
+          authMode = 'register';
+          schoolCodeInput.value = senha;
+          senhaInput.value = '';
+          updateFormMode();
+          showFeedback('ESCOLA2026 é o código da escola, não seu PIN pessoal. Escolha um PIN de 4 números e toque em Criar perfil.');
+          schoolCodeInput.focus();
+          return;
+        }
+
         if (!isRegistering && senha.length < 4) {
           showFeedback('Digite seu PIN para entrar.');
           return;
@@ -245,7 +259,12 @@
           : window.GeniosApp.loginUser({ nome, turma, password: senha, accountType });
 
         if (!result.ok) {
-          showFeedback(result.message || 'Não foi possível entrar no jogo.');
+          const message = result.code === 'PROFILE_NOT_FOUND'
+            ? accountType === 'school'
+              ? 'Esse perfil ainda não existe neste dispositivo. Para o primeiro acesso, toque em Criar perfil e use o código da escola.'
+              : 'Esse perfil ainda não existe neste dispositivo. Toque em Criar perfil para começar.'
+            : result.message || 'Não foi possível entrar no jogo.';
+          showFeedback(message);
           return;
         }
 

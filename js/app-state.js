@@ -1,4 +1,5 @@
 (function () {
+  const PROVISIONAL_SCHOOL_CODE = 'ESCOLA2026';
   const STORAGE_KEYS = {
     player: 'genios-player',
     accounts: 'genios-accounts',
@@ -162,7 +163,7 @@
     if (!cleanCode || !cleanClass) {
       return { ok: false, message: 'Peça ao professor o código da sua turma.' };
     }
-    if (cleanCode.toUpperCase() === 'ESCOLA2026') {
+    if (cleanCode.toUpperCase() === PROVISIONAL_SCHOOL_CODE) {
       schoolEnrollmentPermit = {
         turma: cleanClass,
         expiresAt: Date.now() + 60_000,
@@ -256,9 +257,17 @@
           && (!accountType || account.accountType === accountType)
           && (account.accountType === 'outside' || account.turma.toLocaleLowerCase('pt-BR') === safeClass)
         ));
+    if (candidates.length === 0) {
+      return {
+        ok: false,
+        code: 'PROFILE_NOT_FOUND',
+        message: 'Esse perfil ainda não foi criado neste dispositivo.',
+      };
+    }
+
     const stored = candidates.find((account) => account.passwordHash === hashString(password));
     if (!stored || (accountType && stored.accountType !== accountType)) {
-      return { ok: false, message: 'Nome, turma ou PIN incorretos.' };
+      return { ok: false, code: 'INVALID_PIN', message: 'Esse PIN não corresponde ao perfil.' };
     }
 
     const player = normalizePlayer(stored);
@@ -501,6 +510,7 @@
   }
 
   window.GeniosApp = {
+    provisionalSchoolCode: PROVISIONAL_SCHOOL_CODE,
     STORAGE_KEYS,
     cosmeticCatalog: cosmeticsCatalog,
     characterCatalog,

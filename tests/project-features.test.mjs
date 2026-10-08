@@ -98,6 +98,14 @@ test('código provisório habilita escola e o PIN do aluno sobrevive a recarga',
   assert.equal(reloadedApp.getPlayer().accountType, 'outside');
 });
 
+test('login explica perfil inexistente separadamente de PIN incorreto', async () => {
+  const app = createApp();
+  assert.equal(app.loginUser({ nome: 'Pedro', turma: '5º ano', password: '4826', accountType: 'school' }).code, 'PROFILE_NOT_FOUND');
+  await app.authorizeSchoolEnrollment({ code: 'ESCOLA2026', turma: '5º ano' });
+  assert.equal(app.registerUser({ nome: 'Pedro', password: '4826', turma: '5º ano', accountType: 'school' }).ok, true);
+  assert.equal(app.loginUser({ nome: 'Pedro', turma: '5º ano', password: '1111', accountType: 'school' }).code, 'INVALID_PIN');
+});
+
 test('ranking local aceita somente escolares ativos e compartilha apenas com a turma', async () => {
   const app = createApp();
   await app.authorizeSchoolEnrollment({ code: 'CODIGO-DE-TESTE', turma: '4º ano' });
