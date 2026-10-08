@@ -174,7 +174,7 @@ test('pergunta e mascote ficam lado a lado em telas largas e empilham no celular
   assert.equal(css.includes('.game-companion {\n  position: absolute'), false);
 });
 
-test('login do professor esconde matérias e sai para a tela inicial', () => {
+test('login do professor volta à página interna de origem ao cancelar ou usar Esc', () => {
   class Element {
     constructor() { this.style = {}; this.value = ''; this.handlers = {}; this.hidden = false; }
     addEventListener(type, handler) { this.handlers[type] = handler; }
@@ -184,7 +184,11 @@ test('login do professor esconde matérias e sai para a tela inicial', () => {
   const ids = ['loginSection', 'dashboardSection', 'professorLoginForm', 'professorEmail', 'professorPassword', 'loginError', 'logoutProfessor', 'cancelProfessorLogin', 'teacherNavigation'];
   const elements = Object.fromEntries(ids.map((id) => [id, new Element()]));
   const brand = { href: 'materias.html' };
-  const document = { getElementById: (id) => elements[id] || null, querySelector: () => brand };
+  const document = {
+    referrer: 'https://jogo.example/materias.html#avatar-store',
+    getElementById: (id) => elements[id] || null,
+    querySelector: () => brand,
+  };
   const storage = new Map([['genios-professor-auth', 'false']]);
   const localStorage = {
     getItem: (key) => storage.get(key) ?? null,
@@ -192,20 +196,23 @@ test('login do professor esconde matérias e sai para a tela inicial', () => {
   };
   let redirect = '';
   const window = {
-    location: { replace: (path) => { redirect = path; } },
+    location: { origin: 'https://jogo.example', pathname: '/professor.html', replace: (path) => { redirect = path; } },
     GeniosApp: {
       setTeacherSession: (value) => localStorage.setItem('genios-professor-auth', value),
       isTeacherLoggedIn: () => localStorage.getItem('genios-professor-auth') === 'true',
     },
   };
   const source = fs.readFileSync(new URL('../js/professor-auth.js', import.meta.url), 'utf8');
-  vm.runInNewContext(source, { window, document, localStorage });
+  vm.runInNewContext(source, { window, document, localStorage, URL });
 
   assert.equal(elements.teacherNavigation.hidden, true);
   assert.equal(elements.teacherNavigation.style.display, 'none');
-  assert.equal(brand.href, 'index.html');
+  assert.equal(brand.href, '/materias.html#avatar-store');
+  elements.cancelProfessorLogin.handlers.click();
+  assert.equal(redirect, '/materias.html#avatar-store');
+  redirect = '';
   elements.loginSection.handlers.keydown({ key: 'Escape', preventDefault() {} });
-  assert.equal(redirect, 'index.html');
+  assert.equal(redirect, '/materias.html#avatar-store');
 
   elements.professorEmail.value = 'professor@escola.com';
   elements.professorPassword.value = '123456';

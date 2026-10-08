@@ -17,6 +17,23 @@
     return;
   }
 
+  function getPreviousPage() {
+    if (!document.referrer) return 'index.html';
+
+    try {
+      const previousUrl = new URL(document.referrer);
+      if (previousUrl.origin === window.location.origin && previousUrl.pathname !== window.location.pathname) {
+        return `${previousUrl.pathname}${previousUrl.search}${previousUrl.hash}`;
+      }
+    } catch (error) {
+      return 'index.html';
+    }
+
+    return 'index.html';
+  }
+
+  const previousPage = getPreviousPage();
+
   function setLoggedIn(value) {
     if (window.GeniosApp) {
       window.GeniosApp.setTeacherSession(value);
@@ -29,11 +46,15 @@
       teacherNavigation.hidden = !value;
       teacherNavigation.style.display = value ? '' : 'none';
     }
-    if (brandLink) brandLink.href = value ? 'materias.html' : 'index.html';
+    if (brandLink) brandLink.href = value ? 'materias.html' : previousPage;
   }
 
   function returnToStudentLogin() {
     window.location.replace('index.html');
+  }
+
+  function returnToPreviousPage() {
+    window.location.replace(previousPage);
   }
 
   function isLoggedIn() {
@@ -73,12 +94,12 @@
     returnToStudentLogin();
   });
 
-  cancelButton?.addEventListener('click', returnToStudentLogin);
+  cancelButton?.addEventListener('click', returnToPreviousPage);
 
   loginSection.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
     event.preventDefault();
-    returnToStudentLogin();
+    returnToPreviousPage();
   });
 
   setLoggedIn(isLoggedIn());
