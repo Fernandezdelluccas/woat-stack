@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=22" />
+  <link rel="stylesheet" href="css/style.css?v=23" />
 </head>
 <body>
 
@@ -31,12 +31,12 @@
       <div class="card login-card" style="max-width: 420px; margin: 0 auto;">
         <span class="eyebrow">Acesso restrito</span>
         <h1>Login do Professor</h1>
-        <p>Digite seu e-mail e senha para acessar o painel.</p>
+        <p>Entre com a conta de professor fornecida pelo administrador da escola.</p>
 
         <form id="professorLoginForm">
           <div class="field">
             <label for="professorEmail">E-mail</label>
-            <input type="email" id="professorEmail" placeholder="professor@escola.com" required />
+            <input type="email" id="professorEmail" placeholder="voce@escola.com" autocomplete="username" required />
           </div>
 
           <div class="field">
@@ -45,7 +45,7 @@
           </div>
 
           <p class="hint" style="margin: -4px 0 16px; text-align: left;">
-            Acesso provisório: <strong>professor@escola.com</strong> / <strong>123456</strong>
+            O acesso é validado pela conta autenticada e pela autorização de professor.
           </p>
 
           <button type="submit" class="btn btn--primary btn--block">Entrar</button>
@@ -68,6 +68,34 @@
           <button type="button" id="logoutProfessor" class="btn btn--ghost">Sair</button>
         </div>
       </div>
+
+      <section class="card teacher-codes-panel" aria-labelledby="teacherCodesTitle">
+        <div>
+          <span class="eyebrow">Acesso da turma</span>
+          <h2 id="teacherCodesTitle">Códigos de cadastro</h2>
+          <p>Gere códigos temporários para seus alunos. O código completo aparece apenas uma vez.</p>
+        </div>
+        <form id="schoolCodeForm" class="teacher-code-form">
+          <div class="field">
+            <label for="schoolCodeClass">Turma</label>
+            <select id="schoolCodeClass" required disabled>
+              <option value="">Carregando suas turmas...</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="schoolCodeUses">Cadastros permitidos</label>
+            <input id="schoolCodeUses" type="number" min="1" max="500" value="30" required />
+          </div>
+          <div class="field">
+            <label for="schoolCodeExpiry">Validade (opcional)</label>
+            <input id="schoolCodeExpiry" type="date" />
+          </div>
+          <button type="submit" class="btn btn--primary">Gerar código</button>
+        </form>
+        <p id="schoolCodeFeedback" class="challenge-feedback" role="status" aria-live="polite"></p>
+        <div id="newSchoolCode" class="new-school-code" hidden></div>
+        <div id="schoolCodesList" class="teacher-code-list" aria-live="polite"></div>
+      </section>
 
       <div class="grid grid--narrow" style="margin-bottom: 28px;">
         <div class="stat-card">
@@ -253,9 +281,12 @@
 
   <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
 
-  <script src="js/nav.js?v=3"></script>
-  <script src="js/app-state.js?v=9"></script>
-  <script src="js/professor-auth.js?v=4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabaseClient.js?v=1"></script>
+  <script src="js/nav.js?v=4"></script>
+  <script src="js/app-state.js?v=12"></script>
+  <script src="js/professor-auth.js?v=5"></script>
+  <script src="js/teacher-access-codes.js?v=1"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const form = document.getElementById('challengeForm');

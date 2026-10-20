@@ -1,5 +1,4 @@
 (function () {
-  const PROVISIONAL_SCHOOL_CODE = 'ESCOLA2026';
   const STORAGE_KEYS = {
     player: 'genios-player',
     accounts: 'genios-accounts',
@@ -7,6 +6,9 @@
     professor: 'genios-professor-auth',
     coins: 'genios-coins',
     gameHistory: 'genios-game-history',
+    gameDraft: 'genios-game-draft',
+    questionReports: 'genios-question-reports',
+    gamePreferences: 'genios-game-preferences',
     cosmetics: 'genios-cosmetics',
     selectedCosmetic: 'genios-selected-cosmetic',
     character: 'genios-character',
@@ -162,13 +164,6 @@
     const cleanClass = String(turma || '').trim();
     if (!cleanCode || !cleanClass) {
       return { ok: false, message: 'Peça ao professor o código da sua turma.' };
-    }
-    if (cleanCode.toUpperCase() === PROVISIONAL_SCHOOL_CODE) {
-      schoolEnrollmentPermit = {
-        turma: cleanClass,
-        expiresAt: Date.now() + 60_000,
-      };
-      return { ok: true, provisional: true };
     }
     if (!window.supabaseClient) {
       return { ok: false, message: 'A validação da escola está indisponível. Peça ajuda ao professor.' };
@@ -398,6 +393,110 @@
     return Array.isArray(history) ? history : [];
   }
 
+  function getGameDraft(gameKey) {
+    const draft = readScopedJson(STORAGE_KEYS.gameDraft, null);
+    return draft && (!gameKey || draft.gameKey === gameKey) ? draft : null;
+  }
+
+  function saveGameDraft(draft) {
+    const gameKeys = ['adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas'];
+    if (!draft || !gameKeys.includes(draft.gameKey) || !Array.isArray(draft.questions)) return false;
+    writeScopedJson(STORAGE_KEYS.gameDraft, {
+      ...draft,
+      index: Math.max(0, Math.floor(Number(draft.index) || 0)),
+      savedAt: new Date().toISOString(),
+    });
+    return true;
+  }
+
+  function clearGameDraft() {
+    localStorage.removeItem(getScopedStorageKey(STORAGE_KEYS.gameDraft));
+  }
+
+  function getGamePreferences(gameKey) {
+    const preferences = readScopedJson(STORAGE_KEYS.gamePreferences, {});
+    return preferences?.[gameKey] || { goalTarget: 2, untimed: false };
+  }
+
+  function saveGamePreferences(gameKey, preferences) {
+    const validGames = ['adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas'];
+    if (!validGames.includes(gameKey)) return false;
+    const current = readScopedJson(STORAGE_KEYS.gamePreferences, {});
+    const goalTarget = Math.max(1, Math.min(4, Math.floor(Number(preferences?.goalTarget) || 2)));
+    writeScopedJson(STORAGE_KEYS.gamePreferences, {
+      ...current,
+      [gameKey]: { goalTarget, untimed: Boolean(preferences?.untimed) },
+    });
+    return true;
+  }
+
+  function saveQuestionReport(report) {
+    const clean = {
+      id: `report-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      gameKey: ['adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas'].includes(report?.gameKey) ? report.gameKey : 'adicao',
+      prompt: String(report?.prompt || '').trim().slice(0, 500),
+      reason: String(report?.reason || '').trim().slice(0, 500),
+      createdAt: new Date().toISOString(),
+    };
+    if (!clean.prompt || !clean.reason) return { ok: false, message: 'Escolha um motivo e descreva o problema.' };
+    const reports = readScopedJson(STORAGE_KEYS.questionReports, []);
+    writeScopedJson(STORAGE_KEYS.questionReports, [clean, ...reports].slice(0, 30));
+    return { ok: true, report: clean };
+  }
+
+  function exportActiveProfile() {
+    const player = getPlayer();
+    if (!player) return { ok: false, message: 'Entre em um perfil primeiro.' };
+    const account = getAccounts().find((item) => item.email === player.email);
+    if (!account) return { ok: false, message: 'Não foi possível encontrar os dados deste perfil.' };
+
+    const scopedData = {};
+    [STORAGE_KEYS.gameHistory, STORAGE_KEYS.gameDraft, STORAGE_KEYS.gamePreferences, STORAGE_KEYS.cosmetics, STORAGE_KEYS.selectedCosmetic, STORAGE_KEYS.character, STORAGE_KEYS.achievements, STORAGE_KEYS.challenges, STORAGE_KEYS.questionReports]
+      .forEach((key) => {
+        const stored = localStorage.getItem(getScopedStorageKey(key));
+        if (stored !== null) scopedData[key] = JSON.parse(stored);
+      });
+
+    return { ok: true, backup: { version: 1, exportedAt: new Date().toISOString(), account, scopedData } };
+  }
+
+  function importProfileBackup(backup) {
+    const account = normalizePlayer(backup?.account);
+    if (backup?.version !== 1 || !account?.email || !account.passwordHash || !account.nome || !backup.scopedData) {
+      return { ok: false, message: 'Este arquivo não parece ser uma cópia válida de perfil.' };
+    }
+
+    const accounts = getAccounts();
+    const accountIndex = accounts.findIndex((item) => item.email === account.email);
+    if (accountIndex >= 0) accounts[accountIndex] = account;
+    else accounts.push(account);
+    writeJson(STORAGE_KEYS.accounts, accounts);
+    setPlayer(account);
+
+    [STORAGE_KEYS.gameHistory, STORAGE_KEYS.gameDraft, STORAGE_KEYS.gamePreferences, STORAGE_KEYS.cosmetics, STORAGE_KEYS.selectedCosmetic, STORAGE_KEYS.character, STORAGE_KEYS.achievements, STORAGE_KEYS.challenges, STORAGE_KEYS.questionReports]
+      .forEach((key) => {
+        if (Object.hasOwn(backup.scopedData, key)) writeScopedJson(key, backup.scopedData[key]);
+      });
+    return { ok: true, profile: account };
+  }
+
+  function deleteActiveProfile() {
+    const player = getPlayer();
+    if (!player) return { ok: false, message: 'Nenhum perfil está ativo.' };
+    const accounts = getAccounts().filter((account) => account.email !== player.email);
+    writeJson(STORAGE_KEYS.accounts, accounts);
+    [STORAGE_KEYS.player, 'genios-session'].forEach((key) => localStorage.removeItem(key));
+    [STORAGE_KEYS.gameHistory, STORAGE_KEYS.gameDraft, STORAGE_KEYS.gamePreferences, STORAGE_KEYS.cosmetics, STORAGE_KEYS.selectedCosmetic, STORAGE_KEYS.character, STORAGE_KEYS.achievements, STORAGE_KEYS.challenges, STORAGE_KEYS.questionReports]
+      .forEach((key) => localStorage.removeItem(`${key}:${encodeURIComponent(player.email)}`));
+
+    if (player.accountType === 'school') {
+      const rankingKey = `${STORAGE_KEYS.ranking}:school:${encodeURIComponent(player.turma)}`;
+      const ranking = readJson(rankingKey, []);
+      writeJson(rankingKey, ranking.filter((entry) => entry.name !== player.nome || entry.turma !== player.turma));
+    }
+    return { ok: true };
+  }
+
   function saveGameSession(session) {
     const gameKeys = ['adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas'];
     const validated = validateScore(session);
@@ -510,7 +609,6 @@
   }
 
   window.GeniosApp = {
-    provisionalSchoolCode: PROVISIONAL_SCHOOL_CODE,
     STORAGE_KEYS,
     cosmeticCatalog: cosmeticsCatalog,
     characterCatalog,
@@ -537,6 +635,15 @@
     getAchievements,
     getGameHistory,
     saveGameSession,
+    getGameDraft,
+    saveGameDraft,
+    clearGameDraft,
+    getGamePreferences,
+    saveGamePreferences,
+    saveQuestionReport,
+    exportActiveProfile,
+    importProfileBackup,
+    deleteActiveProfile,
     unlockAchievement,
     getChallenges,
     createChallenge,

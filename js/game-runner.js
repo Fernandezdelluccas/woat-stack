@@ -5,6 +5,7 @@ const manualTutorialRequested = new URLSearchParams(window.location.search).get(
 const gameInfo = getGameDefinition(gameKey);
 const baseQuestions = buildQuestions(gameKey, 7);
 const player = window.GeniosApp?.getPlayer?.() || { nome: 'Jogador', turma: '4º ano', avatar: '🦊', coins: 0 };
+const gamePreferences = window.GeniosApp?.getGamePreferences?.(gameKey) || { goalTarget: 2, untimed: false };
 
 const state = {
   index: 0,
@@ -14,19 +15,28 @@ const state = {
   seconds: 0,
   timerId: null,
   level: 1,
-  levelTarget: 2,
+  levelTarget: gamePreferences.goalTarget,
   retryReason: '',
   totalCorrect: 0,
   totalWrong: 0,
   currentStreak: 0,
   bestStreak: 0,
   answers: [],
+  paused: false,
+  awaitingAdvance: false,
+  untimed: gamePreferences.untimed,
+  completed: false,
+  advanceTimerId: null,
+  pendingAction: null,
+  pendingDelay: 0,
+  pendingAt: 0,
 };
 
 const questionMeta = document.getElementById('questionMeta');
 const questionVisual = document.getElementById('questionVisual');
 const questionExample = document.getElementById('questionExample');
 const questionPrompt = document.getElementById('questionPrompt');
+const answerFeedback = document.getElementById('answerFeedback');
 const optionsGrid = document.getElementById('optionsGrid');
 const progressBar = document.getElementById('progressBar');
 const progressDots = document.getElementById('progressDots');
@@ -36,6 +46,19 @@ const errosEl = document.getElementById('erros');
 const tempoEl = document.getElementById('tempo');
 const companionBubble = document.getElementById('companionBubble');
 const gameCompanion = document.getElementById('gameCompanion');
+const goalTargetInput = document.getElementById('goalTarget');
+const untimedModeInput = document.getElementById('untimedMode');
+const pauseGameButton = document.getElementById('pauseGameButton');
+const pauseOverlay = document.getElementById('gamePauseOverlay');
+const pauseStatus = document.getElementById('pauseStatus');
+const resumeGameButton = document.getElementById('resumeGameButton');
+const restartGameButton = document.getElementById('restartGameButton');
+const questionCard = document.querySelector('.question-card');
+const scratchBoard = document.getElementById('scratchBoard');
+const scratchCanvas = document.getElementById('scratchCanvas');
+const scratchFeedback = document.getElementById('scratchFeedback');
+const questionReportForm = document.getElementById('questionReportForm');
+const questionReportFeedback = document.getElementById('questionReportFeedback');
 const companionDefaultAvatar = player.avatar || '🦊';
 let petPressTimer = null;
 let petLongPress = false;
@@ -66,12 +89,140 @@ function getQuestionsForLevel() {
 }
 
 let currentQuestions = getQuestionsForLevel();
+const savedGameDraft = window.GeniosApp?.getGameDraft?.(gameKey);
+const isRestoringGame = Boolean(savedGameDraft?.questions?.length);
+
+if (isRestoringGame) {
+  Object.assign(state, {
+    index: savedGameDraft.index,
+    score: savedGameDraft.score,
+    correct: savedGameDraft.correct,
+    wrong: savedGameDraft.wrong,
+    seconds: savedGameDraft.seconds,
+    level: savedGameDraft.level,
+    levelTarget: savedGameDraft.levelTarget,
+    totalCorrect: savedGameDraft.totalCorrect,
+    totalWrong: savedGameDraft.totalWrong,
+    currentStreak: savedGameDraft.currentStreak,
+    bestStreak: savedGameDraft.bestStreak,
+    answers: savedGameDraft.answers,
+    retryReason: savedGameDraft.retryReason,
+    untimed: savedGameDraft.untimed,
+    awaitingAdvance: Boolean(savedGameDraft.awaitingAdvance),
+    pendingDelay: Math.max(0, Number(savedGameDraft.pendingDelay) || 0),
+    paused: true,
+  });
+  if (state.awaitingAdvance) state.pendingAction = advanceAfterAnswer;
+  currentQuestions = savedGameDraft.questions;
+}
+
+if (goalTargetInput) goalTargetInput.value = String(state.levelTarget);
+if (untimedModeInput) untimedModeInput.checked = state.untimed;
+if (state.untimed) tempoEl.textContent = 'Sem limite';
 
 function startTimer() {
+  if (state.untimed || state.paused || state.timerId !== null || state.completed) return;
   state.timerId = window.setInterval(() => {
     state.seconds += 1;
-    tempoEl.textContent = formatElapsed(state.seconds);
+    tempoEl.textContent = state.untimed ? 'Sem limite' : formatElapsed(state.seconds);
   }, 1000);
+}
+
+function saveCurrentDraft() {
+  if (state.completed || !window.GeniosApp?.saveGameDraft) return;
+  window.GeniosApp.saveGameDraft({
+    gameKey,
+    questions: currentQuestions,
+    index: state.index,
+    score: state.score,
+    correct: state.correct,
+    wrong: state.wrong,
+    seconds: state.seconds,
+    level: state.level,
+    levelTarget: state.levelTarget,
+    totalCorrect: state.totalCorrect,
+    totalWrong: state.totalWrong,
+    currentStreak: state.currentStreak,
+    bestStreak: state.bestStreak,
+    answers: state.answers,
+    retryReason: state.retryReason,
+    untimed: state.untimed,
+    awaitingAdvance: state.awaitingAdvance,
+    pendingDelay: state.pendingDelay,
+    scratchData: scratchCanvas?.toDataURL('image/png') || '',
+  });
+}
+
+function restoreScratchDrawing(dataUrl) {
+  if (!dataUrl || !scratchCanvas) return;
+  const image = new Image();
+  image.onload = () => {
+    const context = scratchCanvas.getContext('2d');
+    context?.drawImage(image, 0, 0, scratchCanvas.width, scratchCanvas.height);
+  };
+  image.src = dataUrl;
+}
+
+if (savedGameDraft?.scratchData) restoreScratchDrawing(savedGameDraft.scratchData);
+
+function runPendingAction() {
+  if (!state.pendingAction || state.paused || state.completed) return;
+  const action = state.pendingAction;
+  state.pendingAction = null;
+  state.advanceTimerId = null;
+  state.pendingDelay = 0;
+  state.awaitingAdvance = false;
+  action();
+}
+
+function advanceAfterAnswer() {
+  if (state.index >= currentQuestions.length - 1) {
+    finishLevel();
+    return;
+  }
+  state.index += 1;
+  renderQuestion();
+  saveCurrentDraft();
+}
+
+function schedulePendingAction(action, delay) {
+  state.pendingAction = action;
+  state.pendingDelay = delay;
+  state.pendingAt = Date.now();
+  state.advanceTimerId = window.setTimeout(runPendingAction, delay);
+}
+
+function pauseGame() {
+  if (state.paused || state.completed) return;
+  state.paused = true;
+  window.clearInterval(state.timerId);
+  state.timerId = null;
+  if (state.advanceTimerId !== null) {
+    window.clearTimeout(state.advanceTimerId);
+    state.pendingDelay = Math.max(0, state.pendingDelay - (Date.now() - state.pendingAt));
+    state.advanceTimerId = null;
+  }
+  saveCurrentDraft();
+  pauseOverlay.hidden = false;
+  pauseGameButton.setAttribute('aria-pressed', 'true');
+  pauseGameButton.textContent = 'Continuar';
+  questionCard.inert = true;
+  resumeGameButton.focus();
+}
+
+function resumeGame() {
+  if (!state.paused) return;
+  state.paused = false;
+  pauseOverlay.hidden = true;
+  questionCard.inert = false;
+  pauseGameButton.setAttribute('aria-pressed', 'false');
+  pauseGameButton.textContent = 'Pausar';
+  startTimer();
+  if (state.pendingAction) {
+    state.pendingAt = Date.now();
+    state.advanceTimerId = window.setTimeout(runPendingAction, state.pendingDelay);
+  }
+  saveCurrentDraft();
 }
 
 function formatElapsed(totalSeconds) {
@@ -106,6 +257,7 @@ function renderQuestion() {
     questionExample.hidden = !current.example;
   }
   questionPrompt.textContent = current.prompt;
+  if (answerFeedback) answerFeedback.textContent = '';
   optionsGrid.innerHTML = '';
 
   current.options.forEach((option) => {
@@ -114,12 +266,20 @@ function renderQuestion() {
     button.className = 'option-btn';
     button.textContent = formatAnswer(option);
     button.addEventListener('click', () => answerQuestion(button, option, current.correctAnswer, current.explanation));
+    if (state.awaitingAdvance) {
+      button.disabled = true;
+      if (String(option) === String(current.correctAnswer)) button.classList.add('is-correct');
+      const lastAnswer = state.answers.at(-1);
+      if (lastAnswer && String(option) === lastAnswer.answer && !lastAnswer.correct) button.classList.add('is-wrong');
+    }
     optionsGrid.appendChild(button);
   });
 
   renderProgressDots();
   const percent = (state.index / currentQuestions.length) * 100;
   progressBar.style.width = `${percent}%`;
+  progressBar.setAttribute('aria-valuenow', String(Math.round(percent)));
+  saveCurrentDraft();
 }
 
 function speakToPlayer(message) {
@@ -129,6 +289,249 @@ function speakToPlayer(message) {
     companionBubble.textContent = message.toUpperCase();
     companionBubble.classList.add('is-speaking');
   });
+}
+
+function setupScratchBoard() {
+  if (!scratchCanvas) return;
+  const context = scratchCanvas.getContext('2d');
+  if (!context) {
+    scratchFeedback.textContent = 'O quadro não está disponível neste navegador.';
+    return;
+  }
+
+  let drawing = false;
+  let color = '#153a33';
+  let erasing = false;
+  const size = document.getElementById('scratchSize');
+
+  function getPoint(event) {
+    const bounds = scratchCanvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - bounds.left) * (scratchCanvas.width / bounds.width),
+      y: (event.clientY - bounds.top) * (scratchCanvas.height / bounds.height),
+    };
+  }
+
+  scratchCanvas.addEventListener('pointerdown', (event) => {
+    if (state.paused) return;
+    event.preventDefault();
+    drawing = true;
+    scratchCanvas.setPointerCapture(event.pointerId);
+    const point = getPoint(event);
+    context.beginPath();
+    context.moveTo(point.x, point.y);
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    context.lineWidth = Number(size.value) * (scratchCanvas.width / scratchCanvas.clientWidth);
+    context.strokeStyle = color;
+    context.globalCompositeOperation = erasing ? 'destination-out' : 'source-over';
+  });
+
+  scratchCanvas.addEventListener('pointermove', (event) => {
+    if (!drawing) return;
+    const point = getPoint(event);
+    context.lineTo(point.x, point.y);
+    context.stroke();
+  });
+
+  const endStroke = () => {
+    if (!drawing) return;
+    drawing = false;
+    context.closePath();
+    saveCurrentDraft();
+  };
+  scratchCanvas.addEventListener('pointerup', endStroke);
+  scratchCanvas.addEventListener('pointercancel', endStroke);
+
+  let keyboardPoint = { x: scratchCanvas.width / 2, y: scratchCanvas.height / 2 };
+  scratchCanvas.addEventListener('keydown', (event) => {
+    const directions = {
+      ArrowUp: { x: 0, y: -1 },
+      ArrowDown: { x: 0, y: 1 },
+      ArrowLeft: { x: -1, y: 0 },
+      ArrowRight: { x: 1, y: 0 },
+    };
+    const direction = directions[event.key];
+    if (!direction) return;
+    event.preventDefault();
+    const nextPoint = {
+      x: Math.max(0, Math.min(scratchCanvas.width, keyboardPoint.x + direction.x * (event.shiftKey ? 18 : 7))),
+      y: Math.max(0, Math.min(scratchCanvas.height, keyboardPoint.y + direction.y * (event.shiftKey ? 18 : 7))),
+    };
+    if (event.shiftKey) {
+      context.beginPath();
+      context.moveTo(keyboardPoint.x, keyboardPoint.y);
+      context.lineTo(nextPoint.x, nextPoint.y);
+      context.lineWidth = Number(size.value) * (scratchCanvas.width / scratchCanvas.clientWidth);
+      context.lineCap = 'round';
+      context.strokeStyle = color;
+      context.globalCompositeOperation = erasing ? 'destination-out' : 'source-over';
+      context.stroke();
+      saveCurrentDraft();
+      scratchFeedback.textContent = 'Traço desenhado pelo teclado.';
+    } else {
+      scratchFeedback.textContent = 'Lápis movido. Use Shift mais uma seta para desenhar.';
+    }
+    keyboardPoint = nextPoint;
+  });
+
+  const pencil = document.getElementById('scratchPencil');
+  const eraser = document.getElementById('scratchEraser');
+  const selectTool = (useEraser) => {
+    erasing = useEraser;
+    pencil.classList.toggle('is-active', !erasing);
+    eraser.classList.toggle('is-active', erasing);
+    pencil.setAttribute('aria-pressed', String(!erasing));
+    eraser.setAttribute('aria-pressed', String(erasing));
+  };
+  pencil.addEventListener('click', () => selectTool(false));
+  eraser.addEventListener('click', () => selectTool(true));
+
+  document.querySelectorAll('.scratch-color').forEach((button) => {
+    button.addEventListener('click', () => {
+      color = button.dataset.color;
+      document.querySelectorAll('.scratch-color').forEach((item) => {
+        const selected = item === button;
+        item.classList.toggle('is-active', selected);
+        item.setAttribute('aria-pressed', String(selected));
+      });
+      selectTool(false);
+    });
+  });
+
+  document.getElementById('scratchClear').addEventListener('click', () => {
+    context.clearRect(0, 0, scratchCanvas.width, scratchCanvas.height);
+    saveCurrentDraft();
+    scratchFeedback.textContent = 'Quadro limpo.';
+  });
+
+  document.getElementById('scratchSave').addEventListener('click', () => {
+    const download = document.createElement('a');
+    download.download = `rascunho-${gameKey}.png`;
+    download.href = scratchCanvas.toDataURL('image/png');
+    download.click();
+    scratchFeedback.textContent = 'Desenho salvo no dispositivo.';
+  });
+}
+
+function setupQuestionTools() {
+  goalTargetInput.value = String(state.levelTarget);
+  untimedModeInput.checked = state.untimed;
+
+  goalTargetInput.addEventListener('change', () => {
+    state.levelTarget = Number(goalTargetInput.value);
+    window.GeniosApp?.saveGamePreferences?.(gameKey, { goalTarget: state.levelTarget, untimed: state.untimed });
+    saveCurrentDraft();
+  });
+
+  untimedModeInput.addEventListener('change', () => {
+    state.untimed = untimedModeInput.checked;
+    tempoEl.textContent = state.untimed ? 'Sem limite' : formatElapsed(state.seconds);
+    window.GeniosApp?.saveGamePreferences?.(gameKey, { goalTarget: state.levelTarget, untimed: state.untimed });
+    if (state.untimed) {
+      window.clearInterval(state.timerId);
+      state.timerId = null;
+    } else {
+      startTimer();
+    }
+    saveCurrentDraft();
+  });
+
+  pauseGameButton.setAttribute('aria-pressed', String(state.paused));
+  pauseGameButton.textContent = state.paused ? 'Continuar' : 'Pausar';
+  if (isRestoringGame) {
+    pauseStatus.textContent = 'Partida salva encontrada. Continue ou comece novamente.';
+    pauseOverlay.hidden = false;
+    questionCard.inert = true;
+    restartGameButton.hidden = false;
+    scoreEl.textContent = `${state.score} pts`;
+    acertosEl.textContent = `${state.correct} acertos`;
+    errosEl.textContent = `${state.wrong} erros`;
+    tempoEl.textContent = state.untimed ? 'Sem limite' : formatElapsed(state.seconds);
+    renderQuestion();
+  }
+
+  pauseGameButton.addEventListener('click', () => {
+    if (state.paused) resumeGame();
+    else pauseGame();
+  });
+  resumeGameButton.addEventListener('click', resumeGame);
+  restartGameButton.addEventListener('click', () => {
+    window.GeniosApp?.clearGameDraft?.();
+    window.location.reload();
+  });
+
+  document.getElementById('toggleScratchButton').addEventListener('click', (event) => {
+    const button = event.currentTarget;
+    scratchBoard.hidden = !scratchBoard.hidden;
+    button.setAttribute('aria-expanded', String(!scratchBoard.hidden));
+    button.textContent = scratchBoard.hidden ? 'Abrir rascunho' : 'Fechar rascunho';
+    if (!scratchBoard.hidden) scratchCanvas.focus();
+  });
+  setupScratchBoard();
+
+  const readButton = document.getElementById('readQuestionButton');
+  readButton.addEventListener('click', () => {
+    const synthesis = window.speechSynthesis;
+    if (!synthesis || typeof window.SpeechSynthesisUtterance !== 'function') {
+      speakToPlayer('Leitura em voz alta indisponível neste navegador.');
+      return;
+    }
+    if (synthesis.speaking) {
+      synthesis.cancel();
+      readButton.textContent = 'Ouvir questão';
+      return;
+    }
+    const current = currentQuestions[state.index];
+    const utterance = new window.SpeechSynthesisUtterance([current?.prompt, current?.example].filter(Boolean).join('. '));
+    utterance.lang = 'pt-BR';
+    utterance.rate = Number(localStorage.getItem('genios-voice-rate')) || 1;
+    utterance.onend = () => { readButton.textContent = 'Ouvir questão'; };
+    synthesis.cancel();
+    synthesis.speak(utterance);
+    readButton.textContent = 'Parar leitura';
+  });
+
+  const reportButton = document.getElementById('reportQuestionButton');
+  reportButton.addEventListener('click', () => {
+    questionReportForm.hidden = !questionReportForm.hidden;
+    reportButton.setAttribute('aria-expanded', String(!questionReportForm.hidden));
+  });
+  document.getElementById('cancelQuestionReport').addEventListener('click', () => {
+    questionReportForm.reset();
+    questionReportForm.hidden = true;
+    reportButton.setAttribute('aria-expanded', 'false');
+  });
+  questionReportForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const current = currentQuestions[state.index];
+    const details = document.getElementById('questionReportDetails').value.trim();
+    const result = window.GeniosApp?.saveQuestionReport?.({
+      gameKey,
+      prompt: current?.prompt,
+      reason: `${document.getElementById('questionReportReason').value}${details ? `: ${details}` : ''}`,
+    });
+    questionReportFeedback.textContent = result?.ok
+      ? 'Obrigado. Seu relato foi guardado neste perfil.'
+      : result?.message || 'Não foi possível guardar o relato.';
+    if (result?.ok) questionReportForm.reset();
+  });
+
+  if (isRestoringGame) {
+    state.paused = true;
+    pauseGameButton.setAttribute('aria-pressed', 'true');
+    pauseGameButton.textContent = 'Continuar';
+    pauseStatus.textContent = 'Encontramos uma partida salva. Continue de onde parou ou comece novamente.';
+    pauseOverlay.hidden = false;
+    questionCard.inert = true;
+    restartGameButton.hidden = false;
+    scoreEl.textContent = `${state.score} pts`;
+    acertosEl.textContent = `${state.correct} acertos`;
+    errosEl.textContent = `${state.wrong} erros`;
+    tempoEl.textContent = state.untimed ? 'Sem limite' : formatElapsed(state.seconds);
+    renderQuestion();
+  }
+
 }
 
 function getPetAffectionPhrase() {
@@ -356,6 +759,7 @@ function renderQuestionVisual(visual) {
 }
 
 function answerQuestion(button, selectedValue, correctValue, explanation) {
+  if (state.paused || state.awaitingAdvance || state.completed) return;
   const isCorrect = selectedValue === correctValue || String(selectedValue) === String(correctValue);
   const current = currentQuestions[state.index];
   state.answers.push({
@@ -387,6 +791,7 @@ function answerQuestion(button, selectedValue, correctValue, explanation) {
     state.bestStreak = Math.max(state.bestStreak, state.currentStreak);
     state.score += 12;
     speakToPlayer(state.correct % 2 === 0 ? 'MANDOU BEM! VOCÊ ENTENDEU A IDEIA.' : 'BOA! ESSE RACIOCÍNIO ESTÁ CERTO.');
+    if (answerFeedback) answerFeedback.textContent = `Acertou! ${formatAnswer(correctValue)}. ${explanation}`;
     if (window.GeniosApp && typeof window.GeniosApp.addCoins === 'function') {
       window.GeniosApp.addCoins(10);
     }
@@ -397,21 +802,16 @@ function answerQuestion(button, selectedValue, correctValue, explanation) {
     state.score = Math.max(0, state.score - 4);
     state.retryReason = explanation;
     speakToPlayer(`DICA: ${explanation}`);
+    if (answerFeedback) answerFeedback.textContent = `Vamos revisar: ${explanation}`;
   }
 
   scoreEl.textContent = `${state.score} pts`;
   acertosEl.textContent = `${state.correct} acertos`;
   errosEl.textContent = `${state.wrong} erros`;
 
-  window.setTimeout(() => {
-    if (state.index >= currentQuestions.length - 1) {
-      finishLevel();
-      return;
-    }
-
-    state.index += 1;
-    renderQuestion();
-  }, isCorrect ? 900 : 4000);
+  state.awaitingAdvance = true;
+  schedulePendingAction(advanceAfterAnswer, isCorrect ? 900 : 4000);
+  saveCurrentDraft();
 }
 
 function triggerLevelCelebration() {
@@ -427,7 +827,7 @@ function triggerLevelCelebration() {
 }
 
 function finishLevel() {
-  const target = levelMap[state.level]?.target || 2;
+  const target = state.levelTarget || levelMap[state.level]?.target || 2;
   const passed = state.correct >= target;
 
   if (passed && state.level < maxLevel) {
@@ -437,6 +837,7 @@ function finishLevel() {
     state.correct = 0;
     state.wrong = 0;
     currentQuestions = getQuestionsForLevel();
+    saveCurrentDraft();
     questionMeta.textContent = `${levelMap[state.level]?.label || 'Próxima fase'} · ${gameInfo.label}`;
     questionPrompt.textContent = `Nível concluído! 🎉 Vamos para ${levelMap[state.level]?.label || 'a próxima aventura'}!`;
     speakToPlayer('NÍVEL CONCLUÍDO! VOCÊ ESTÁ PRONTO PARA A PRÓXIMA MISSÃO!');
@@ -450,6 +851,7 @@ function finishLevel() {
     `;
     progressDots.innerHTML = '';
     progressBar.style.width = '100%';
+    progressBar.setAttribute('aria-valuenow', '100');
 
     const nextButton = document.getElementById('nextLevelBtn');
     nextButton.addEventListener('click', () => {
@@ -483,12 +885,18 @@ function finishLevel() {
     state.wrong = 0;
     currentQuestions = getQuestionsForLevel();
     state.retryReason = '';
+    saveCurrentDraft();
     renderQuestion();
   });
 }
 
 function finishGame() {
+  state.completed = true;
   window.clearInterval(state.timerId);
+  window.clearTimeout(state.advanceTimerId);
+  state.timerId = null;
+  state.advanceTimerId = null;
+  window.GeniosApp?.clearGameDraft?.();
 
   if (window.GeniosApp) {
     const history = window.GeniosApp.saveGameSession?.({
@@ -526,17 +934,45 @@ function finishGame() {
     });
   }
 
-  questionMeta.textContent = 'Jogo concluído';
+  questionMeta.textContent = 'Aventura concluída';
+  progressBar.style.width = '100%';
+  progressBar.setAttribute('aria-valuenow', '100');
   questionPrompt.textContent = `Você terminou com ${state.score} pontos!`;
   speakToPlayer('PARABÉNS! VOCÊ CONCLUIU A AVENTURA. VEJA SUAS MOEDAS E CONQUISTAS.');
-  optionsGrid.innerHTML = `
-    <div class="card" style="grid-column: 1 / -1;">
-      <p class="hint text-center" style="margin: 0;">Acertos: ${state.correct} · Erros: ${state.wrong} · Tempo: ${formatElapsed(state.seconds)}</p>
-      <div style="margin-top: 16px; text-align: center;">
-        <a href="matematica.html" class="btn btn--primary">Voltar às matérias</a>
-      </div>
-    </div>
-  `;
+  const summary = document.createElement('section');
+  summary.className = 'game-result-summary';
+  summary.setAttribute('aria-labelledby', 'gameResultTitle');
+  const heading = document.createElement('h2');
+  heading.id = 'gameResultTitle';
+  heading.textContent = 'Resumo da aventura';
+  const metrics = document.createElement('p');
+  metrics.className = 'game-result-summary__metrics';
+  metrics.textContent = `Acertos: ${state.totalCorrect} · Erros: ${state.totalWrong} · Melhor sequência: ${state.bestStreak} · Tempo: ${state.untimed ? 'Sem limite' : formatElapsed(state.seconds)}`;
+  summary.append(heading, metrics);
+
+  const missedAnswers = state.answers.filter((answer) => !answer.correct);
+  if (missedAnswers.length > 0) {
+    const reviewTitle = document.createElement('h3');
+    reviewTitle.textContent = 'Vamos revisar';
+    const reviewList = document.createElement('ul');
+    missedAnswers.forEach((answer) => {
+      const item = document.createElement('li');
+      item.textContent = `${answer.prompt} Sua resposta: ${answer.answer}. Resposta: ${answer.correctAnswer}.`;
+      reviewList.appendChild(item);
+    });
+    summary.append(reviewTitle, reviewList);
+  } else {
+    const perfect = document.createElement('p');
+    perfect.textContent = 'Você acertou todas as questões desta aventura!';
+    summary.appendChild(perfect);
+  }
+
+  const backLink = document.createElement('a');
+  backLink.href = 'matematica.html';
+  backLink.className = 'btn btn--primary';
+  backLink.textContent = 'Voltar às matérias';
+  summary.appendChild(backLink);
+  optionsGrid.replaceChildren(summary);
   progressDots.innerHTML = '';
   progressBar.style.width = '100%';
 }
@@ -650,7 +1086,14 @@ if (tutorialButton) {
   });
 }
 
-showTutorial({ automatic: !manualTutorialRequested }).then(() => {
-  startTimer();
-  renderQuestion();
-});
+setupQuestionTools();
+
+if (isRestoringGame) {
+  pauseStatus.textContent = 'Encontramos uma partida salva. Continue de onde parou ou comece novamente.';
+  pauseOverlay.hidden = false;
+} else {
+  showTutorial({ automatic: !manualTutorialRequested }).then(() => {
+    startTimer();
+    renderQuestion();
+  });
+}

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=22" />
+  <link rel="stylesheet" href="css/style.css?v=23" />
   <style>
     body { justify-content: flex-start; min-height: 100svh; }
     .login-main { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; padding: clamp(16px, 3vh, 32px) 16px 32px; }
@@ -104,9 +104,9 @@
           <details class="login-help">
         <summary>Quais dados devo usar para entrar?</summary>
         <ul>
-          <li><strong>Aluno da escola:</strong> nome e PIN escolhidos no cadastro; código da escola <code>ESCOLA2026</code>.</li>
+          <li><strong>Aluno da escola:</strong> use o código privado da turma fornecido pelo professor.</li>
           <li><strong>Visitante:</strong> nome e PIN escolhidos ao criar o perfil.</li>
-          <li><strong>Professor:</strong> e-mail <code>professor@escola.com</code> e senha <code>123456</code>.</li>
+          <li><strong>Professor:</strong> use a conta fornecida pelo administrador da escola.</li>
         </ul>
           </details>
 
@@ -124,8 +124,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabaseClient.js?v=1"></script>
-  <script src="js/app-state.js?v=11"></script>
-  <script src="js/nav.js?v=3"></script>
+  <script src="js/app-state.js?v=12"></script>
+  <script src="js/nav.js?v=4"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const form = document.getElementById('playerLoginForm');
@@ -238,20 +238,6 @@
             showFeedback(authorization.message);
             return;
           }
-        }
-
-        if (
-          !isRegistering
-          && accountType === 'school'
-          && senha.toUpperCase() === window.GeniosApp.provisionalSchoolCode
-        ) {
-          authMode = 'register';
-          schoolCodeInput.value = senha;
-          senhaInput.value = '';
-          updateFormMode();
-          showFeedback('ESCOLA2026 é o código da escola, não seu PIN pessoal. Escolha um PIN de 4 números e toque em Criar perfil.');
-          schoolCodeInput.focus();
-          return;
         }
 
         if (!isRegistering && senha.length < 4) {

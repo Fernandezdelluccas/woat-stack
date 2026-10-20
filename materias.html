@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=22" />
+  <link rel="stylesheet" href="css/style.css?v=23" />
 </head>
 <body>
 
@@ -92,13 +92,28 @@
         </div>
         <div class="activity-list" id="gameHistoryList" aria-live="polite"></div>
       </section>
+
+      <section class="account-tools" aria-labelledby="accountToolsTitle">
+        <div>
+          <span class="eyebrow">Seu perfil neste aparelho</span>
+          <h2 id="accountToolsTitle">Cópia e privacidade</h2>
+          <p>Use a cópia para transferir seu perfil para outro aparelho.</p>
+        </div>
+        <div class="account-tools__actions">
+          <button type="button" class="btn btn--ghost" id="exportProfileButton">Baixar cópia</button>
+          <label class="btn btn--ghost account-import-button" for="importProfileInput">Restaurar cópia</label>
+          <input id="importProfileInput" type="file" accept="application/json,.json" hidden />
+          <button type="button" class="btn btn--danger" id="deleteProfileButton">Excluir meu perfil</button>
+        </div>
+        <p id="accountToolsFeedback" class="hint" role="status" aria-live="polite"></p>
+      </section>
     </div>
   </main>
 
   <footer class="footer">G&Ecirc;NIOS DO JOGO · CRUZEIRO DO SUL · ANÁLIA FRANCO I</footer>
 
-  <script src="js/app-state.js?v=9"></script>
-  <script src="js/nav.js?v=3"></script>
+  <script src="js/app-state.js?v=12"></script>
+  <script src="js/nav.js?v=4"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const player = window.GeniosApp?.getPlayer?.();
@@ -264,6 +279,57 @@
       renderShop();
       renderAchievements();
       renderGameHistory();
+
+      const toolsFeedback = document.getElementById('accountToolsFeedback');
+      const exportButton = document.getElementById('exportProfileButton');
+      const importInput = document.getElementById('importProfileInput');
+      const deleteButton = document.getElementById('deleteProfileButton');
+      const showToolsFeedback = (message) => { toolsFeedback.textContent = message; };
+
+      exportButton.addEventListener('click', () => {
+        const result = window.GeniosApp.exportActiveProfile();
+        if (!result.ok) {
+          showToolsFeedback(result.message);
+          return;
+        }
+        const blob = new Blob([JSON.stringify(result.backup, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const safeName = String(player?.nome || 'aluno').replace(/[^\p{L}\p{N}_-]+/gu, '-');
+        link.href = url;
+        link.download = `genios-perfil-${safeName}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+        showToolsFeedback('Cópia baixada. Guarde o arquivo em local seguro.');
+      });
+
+      importInput.addEventListener('change', async () => {
+        const file = importInput.files?.[0];
+        if (!file) return;
+        try {
+          const backup = JSON.parse(await file.text());
+          const result = window.GeniosApp.importProfileBackup(backup);
+          if (!result.ok) {
+            showToolsFeedback(result.message);
+            return;
+          }
+          window.location.reload();
+        } catch (error) {
+          showToolsFeedback('Não foi possível abrir esse arquivo de cópia.');
+        } finally {
+          importInput.value = '';
+        }
+      });
+
+      deleteButton.addEventListener('click', () => {
+        if (!window.confirm('Excluir este perfil e os dados salvos neste aparelho? Esta ação não pode ser desfeita.')) return;
+        const result = window.GeniosApp.deleteActiveProfile();
+        if (!result.ok) {
+          showToolsFeedback(result.message);
+          return;
+        }
+        window.location.replace('index.html');
+      });
     });
   </script>
 </body>

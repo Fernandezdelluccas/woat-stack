@@ -4,21 +4,21 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { buildQuestions, GAME_TYPES } from '../js/game.mjs';
 
-function createApp(initialData = {}, validSchoolCode = 'CODIGO-DE-TESTE', sharedStorage = null) {
+function createApp(initialData = {}, validSchoolCode = 'CODIGO-DE-TESTE', sharedStorage = null, withSupabase = true) {
   const storage = sharedStorage || new Map(Object.entries(initialData));
   const localStorage = {
     getItem: (key) => storage.get(key) ?? null,
     setItem: (key, value) => storage.set(key, String(value)),
     removeItem: (key) => storage.delete(key),
   };
-  const window = {
+  const window = withSupabase ? {
     supabaseClient: {
       rpc: async (functionName, args) => ({
         data: functionName === 'validate_school_access_code' && args.p_code === validSchoolCode,
         error: null,
       }),
     },
-  };
+  } : {};
   const source = fs.readFileSync(new URL('../js/app-state.js', import.meta.url), 'utf8');
   vm.runInNewContext(source, { window, localStorage, TextEncoder, Date, Math, JSON, Array });
   return window.GeniosApp;
@@ -82,10 +82,10 @@ test('cadastro de criança exige código da escola e PIN de quatro dígitos', as
   assert.equal(app.loginUser({ nome: 'Bia', turma: '3º ano', password: '1111', accountType: 'school' }).ok, false);
 });
 
-test('código provisório habilita escola e o PIN do aluno sobrevive a recarga', async () => {
+test('código privado do professor habilita escola e o PIN do aluno sobrevive a recarga', async () => {
   const storage = new Map();
   const firstVisit = createApp({}, 'CODIGO-DE-TESTE', storage);
-  assert.equal((await firstVisit.authorizeSchoolEnrollment({ code: 'escola2026', turma: '5º ano' })).ok, true);
+  assert.equal((await firstVisit.authorizeSchoolEnrollment({ code: 'CODIGO-DE-TESTE', turma: '5º ano' })).ok, true);
   const registered = firstVisit.registerUser({ nome: 'Pedro', password: '4826', turma: '5º ano', accountType: 'school' });
   assert.equal(registered.ok, true);
   const visitor = firstVisit.registerUser({ nome: 'Convidada', password: '7391', accountType: 'outside' });
@@ -98,17 +98,57 @@ test('código provisório habilita escola e o PIN do aluno sobrevive a recarga',
   assert.equal(reloadedApp.getPlayer().accountType, 'outside');
 });
 
+test('perfil pode ser exportado, restaurado e excluído sem remover dados de outros perfis', async () => {
+  const originalStorage = new Map();
+  const app = createApp({}, 'CODIGO-DE-TESTE', originalStorage);
+  await app.authorizeSchoolEnrollment({ code: 'CODIGO-DE-TESTE', turma: '4º ano' });
+  const student = app.registerUser({ nome: 'Lia', password: '7531', turma: '4º ano', accountType: 'school' });
+  app.saveGameSession({ gameKey: 'adicao', points: 36, acertos: 3, erros: 0, seconds: 80 });
+  app.saveGameDraft({ gameKey: 'adicao', questions: [], index: 0 });
+  app.saveGamePreferences('adicao', { goalTarget: 3, untimed: true });
+  const backup = app.exportActiveProfile();
+  assert.equal(backup.ok, true);
+
+  const secondStorage = new Map();
+  const restoredApp = createApp({}, 'CODIGO-DE-TESTE', secondStorage);
+  assert.equal(restoredApp.importProfileBackup(backup.backup).ok, true);
+  assert.equal(restoredApp.loginUser({ nome: 'Lia', turma: '4º ano', password: '7531', accountType: 'school' }).ok, true);
+  assert.equal(restoredApp.getGameHistory().length, 1);
+  assert.equal(restoredApp.deleteActiveProfile().ok, true);
+  assert.equal(restoredApp.getPlayer(), null);
+  assert.equal(secondStorage.has('genios-game-draft:lia%40aluno.local'), false);
+  assert.equal(secondStorage.has('genios-game-preferences:lia%40aluno.local'), false);
+  assert.equal(student.ok, true);
+});
+
+test('relatório de questão valida campos e fica salvo no perfil ativo', () => {
+  const app = createApp();
+  const guest = app.registerUser({ nome: 'Visitante', password: '7531', accountType: 'outside' });
+  assert.equal(guest.ok, true);
+  assert.equal(app.loginUser({ nome: 'Visitante', password: '7531', accountType: 'outside' }).ok, true);
+  assert.equal(app.saveQuestionReport({ gameKey: 'adicao', prompt: '2 + 2?' }).ok, false);
+  assert.equal(app.saveQuestionReport({ gameKey: 'adicao', prompt: '2 + 2?', reason: 'Enunciado confuso' }).ok, true);
+  assert.equal(app.exportActiveProfile().backup.scopedData['genios-question-reports'].length, 1);
+});
+
 test('login explica perfil inexistente separadamente de PIN incorreto', async () => {
   const app = createApp();
   assert.equal(app.loginUser({ nome: 'Pedro', turma: '5º ano', password: '4826', accountType: 'school' }).code, 'PROFILE_NOT_FOUND');
-  await app.authorizeSchoolEnrollment({ code: 'ESCOLA2026', turma: '5º ano' });
+  await app.authorizeSchoolEnrollment({ code: 'CODIGO-DE-TESTE', turma: '5º ano' });
   assert.equal(app.registerUser({ nome: 'Pedro', password: '4826', turma: '5º ano', accountType: 'school' }).ok, true);
   assert.equal(app.loginUser({ nome: 'Pedro', turma: '5º ano', password: '1111', accountType: 'school' }).code, 'INVALID_PIN');
 });
 
 test('entrada usa versão nova do módulo de login para descartar cache antigo', () => {
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.ok(html.includes('js/app-state.js?v=11'));
+  assert.ok(html.includes('js/app-state.js?v=12'));
+});
+
+test('cadastro escolar falha fechado sem Supabase e não aceita código legado', async () => {
+  const app = createApp({}, 'CODIGO-DE-TESTE', null, false);
+  assert.equal((await app.authorizeSchoolEnrollment({ code: 'ESCOLA2026', turma: '4º ano' })).ok, false);
+  assert.equal((await app.authorizeSchoolEnrollment({ code: 'CODIGO-DE-TESTE', turma: '4º ano' })).ok, false);
+  assert.equal(Object.hasOwn(app, 'provisionalSchoolCode'), false);
 });
 
 test('ranking local aceita somente escolares ativos e compartilha apenas com a turma', async () => {
@@ -183,20 +223,28 @@ test('exemplo prático visual tem ícone e grupos ampliados que podem quebrar li
   assert.ok(css.includes('white-space: normal'));
 });
 
-test('login do professor volta à página interna de origem ao cancelar ou usar Esc', () => {
+test('login do professor exige Auth e papel docente, e retorna à página interna de origem', async () => {
+  const professorHtml = fs.readFileSync(new URL('../professor.html', import.meta.url), 'utf8');
+  assert.ok(!professorHtml.includes('123456') && !professorHtml.includes('Acesso provisório:'), 'não deve expor senha docente de demonstração');
   class Element {
-    constructor() { this.style = {}; this.value = ''; this.handlers = {}; this.hidden = false; }
+    constructor() { this.style = {}; this.value = ''; this.handlers = {}; this.hidden = false; this.textContent = ''; }
     addEventListener(type, handler) { this.handlers[type] = handler; }
     reset() { this.value = ''; }
   }
 
   const ids = ['loginSection', 'dashboardSection', 'professorLoginForm', 'professorEmail', 'professorPassword', 'loginError', 'logoutProfessor', 'cancelProfessorLogin', 'teacherNavigation'];
   const elements = Object.fromEntries(ids.map((id) => [id, new Element()]));
-  const brand = { href: 'materias.html' };
+  elements.loginSection.style.display = 'block';
+  elements.dashboardSection.style.display = 'none';
+  elements.teacherNavigation.hidden = true;
+  elements.teacherNavigation.style.display = 'none';
+  const brand = { href: 'index.html' };
+  const documentEvents = {};
   const document = {
     referrer: 'https://jogo.example/materias.html#avatar-store',
     getElementById: (id) => elements[id] || null,
     querySelector: () => brand,
+    dispatchEvent: (event) => { documentEvents[event.type] = event; },
   };
   const storage = new Map([['genios-professor-auth', 'false']]);
   const localStorage = {
@@ -204,16 +252,37 @@ test('login do professor volta à página interna de origem ao cancelar ou usar 
     setItem: (key, value) => storage.set(key, String(value)),
   };
   let redirect = '';
+  let teacherAllowed = true;
+  let signOutCount = 0;
   const window = {
     location: { origin: 'https://jogo.example', pathname: '/professor.html', replace: (path) => { redirect = path; } },
+    supabaseClient: {
+      auth: {
+        getSession: async () => ({ data: { session: null }, error: null }),
+        signInWithPassword: async ({ email, password }) => ({
+          data: email === 'docente@escola.test' && password === 'segredo' ? { user: { id: 'teacher-1' } } : { user: null },
+          error: email === 'docente@escola.test' && password === 'segredo' ? null : { message: 'invalid credentials' },
+        }),
+        signOut: async () => { signOutCount += 1; return { error: null }; },
+      },
+      from(table) {
+        assert.equal(table, 'teacher_accounts');
+        const query = {
+          select() { return query; },
+          eq() { return query; },
+          maybeSingle: async () => ({ data: teacherAllowed ? { user_id: 'teacher-1' } : null, error: null }),
+        };
+        return query;
+      },
+    },
     GeniosApp: {
       setTeacherSession: (value) => localStorage.setItem('genios-professor-auth', value),
       isTeacherLoggedIn: () => localStorage.getItem('genios-professor-auth') === 'true',
     },
   };
   const source = fs.readFileSync(new URL('../js/professor-auth.js', import.meta.url), 'utf8');
-  vm.runInNewContext(source, { window, document, localStorage, URL });
-
+  vm.runInNewContext(source, { window, document, localStorage, URL, CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options?.detail; } } });
+  await new Promise((resolve) => setImmediate(resolve));
   assert.equal(elements.teacherNavigation.hidden, true);
   assert.equal(elements.teacherNavigation.style.display, 'none');
   assert.equal(brand.href, '/materias.html#avatar-store');
@@ -223,27 +292,53 @@ test('login do professor volta à página interna de origem ao cancelar ou usar 
   elements.loginSection.handlers.keydown({ key: 'Escape', preventDefault() {} });
   assert.equal(redirect, '/materias.html#avatar-store');
 
-  elements.professorEmail.value = 'professor@escola.com';
-  elements.professorPassword.value = '123456';
-  elements.professorLoginForm.handlers.submit({ preventDefault() {} });
+  elements.professorEmail.value = 'docente@escola.test';
+  elements.professorPassword.value = 'segredo';
+  await elements.professorLoginForm.handlers.submit({ preventDefault() {} });
+
   assert.equal(elements.teacherNavigation.hidden, false);
   assert.equal(elements.dashboardSection.style.display, 'block');
+  assert.ok(documentEvents['professor:login']);
 
-  elements.logoutProfessor.handlers.click();
+  await elements.logoutProfessor.handlers.click();
   assert.equal(localStorage.getItem('genios-professor-auth'), 'false');
   assert.equal(redirect, 'index.html');
+
+  teacherAllowed = false;
+  await elements.professorLoginForm.handlers.submit({ preventDefault() {} });
+  assert.equal(elements.dashboardSection.style.display, 'none');
+  assert.equal(elements.loginError.textContent, 'Esta conta não está autorizada para acessar o painel do professor.');
+  assert.equal(signOutCount, 2);
 });
 
 test('login infantil exige código apenas ao cadastrar perfil escolar e nunca mostra e-mail', () => {
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  for (const marker of ['data-account-type="school"', 'data-account-type="outside"', 'data-auth-mode="login"', 'data-auth-mode="register"', 'id="loginFeedback"', 'autocomplete="nickname"', 'inputmode="numeric"', 'id="schoolCodeField"', 'authorizeSchoolEnrollment', 'supabase-js@2', 'ESCOLA2026', 'professor@escola.com', '123456']) {
+  for (const marker of ['data-account-type="school"', 'data-account-type="outside"', 'data-auth-mode="login"', 'data-auth-mode="register"', 'id="loginFeedback"', 'autocomplete="nickname"', 'inputmode="numeric"', 'id="schoolCodeField"', 'authorizeSchoolEnrollment', 'supabase-js@2']) {
     assert.ok(html.includes(marker), `controle ausente: ${marker}`);
   }
+  assert.ok(!html.includes('ESCOLA2026'), 'não deve publicar código escolar compartilhado');
+  assert.ok(!html.includes('professor@escola.com') && !html.includes('123456'), 'não deve expor credenciais docentes de demonstração');
   assert.ok(!html.includes('id="email"'), 'a tela infantil não deve pedir e-mail');
   assert.ok(!html.includes('emailInput'), 'o controlador da tela não deve ler e-mail');
   const inlineScripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
   assert.equal(inlineScripts.length, 1);
   assert.doesNotThrow(() => new Function(inlineScripts[0][1]));
+});
+
+test('gestão do perfil expõe exportação, restauração e exclusão confirmada', () => {
+  const html = fs.readFileSync(new URL('../materias.html', import.meta.url), 'utf8');
+  for (const marker of ['id="exportProfileButton"', 'id="importProfileInput"', 'id="deleteProfileButton"', 'exportActiveProfile()', 'importProfileBackup(backup)', 'deleteActiveProfile()', 'window.confirm']) {
+    assert.ok(html.includes(marker), `controle de perfil ausente: ${marker}`);
+  }
+});
+
+test('jogo expõe atalho de teclado e progresso da fase para tecnologia assistiva', () => {
+  const html = fs.readFileSync(new URL('../jogo.html', import.meta.url), 'utf8');
+  const runner = fs.readFileSync(new URL('../js/game-runner.js', import.meta.url), 'utf8');
+  assert.ok(html.includes('href="#questionPrompt"'));
+  assert.ok(html.includes('role="progressbar"'));
+  assert.ok(html.includes('aria-valuenow="0"'));
+  assert.ok(runner.includes("setAttribute('aria-valuenow', String(Math.round(percent)))"));
 });
 
 test('códigos escolares e tabelas de ranking têm proteção server-side no schema', () => {
@@ -263,13 +358,16 @@ test('códigos escolares e tabelas de ranking têm proteção server-side no sch
 test('dock remove tema, mantém música e lê controles sem falar o PIN digitado', () => {
   const storage = new Map();
   const spoken = [];
+  const spokenRates = [];
   const documentHandlers = {};
   let audioContextCreations = 0;
+  const rootClasses = new Set();
 
   function element() {
     return {
       style: { setProperty(name, value) { this[name] = value; } },
       attributes: {},
+      innerHTML: '',
       handlers: {},
       classList: { toggle() {} },
       addEventListener(type, handler) { this.handlers[type] = handler; },
@@ -291,18 +389,25 @@ test('dock remove tema, mantém música e lê controles sem falar o PIN digitado
 
   const voiceButton = element();
   const soundButton = element();
+  const voiceRateSlider = element();
+  const voiceRateValue = element();
+  const highContrastToggle = element();
   const volumeSlider = element();
   const volumeValue = element();
   const dock = element();
   dock.querySelector = (selector) => ({
     '.control-btn--voice': voiceButton,
     '.control-btn--sound': soundButton,
+    '#voiceRateSlider': voiceRateSlider,
+    '#voiceRateValue': voiceRateValue,
+    '#highContrastToggle': highContrastToggle,
     '.volume-slider': volumeSlider,
     '.volume-value': volumeValue,
   })[selector] || null;
 
   const document = {
     body: { appendChild() {} },
+    documentElement: { classList: { toggle(name, enabled) { if (enabled) rootClasses.add(name); else rootClasses.delete(name); } } },
     addEventListener(type, handler) { documentHandlers[type] = handler; },
     createElement() { return dock; },
     querySelectorAll() { return []; },
@@ -318,7 +423,7 @@ test('dock remove tema, mantém música e lê controles sem falar o PIN digitado
     speechSynthesis: {
       cancel() {},
       getVoices: () => [{ lang: 'pt-BR' }],
-      speak: (utterance) => spoken.push(utterance.text),
+      speak: (utterance) => { spoken.push(utterance.text); spokenRates.push(utterance.rate); },
     },
     AudioContext: class {
       constructor() {
@@ -333,6 +438,8 @@ test('dock remove tema, mantém música e lê controles sem falar o PIN digitado
 
   assert.equal(volumeSlider.value, 36);
   assert.equal(volumeValue.value, '36%');
+  assert.equal(voiceRateSlider.value, '1');
+  assert.equal(voiceRateValue.value, '1.0×');
   assert.equal(dock.innerHTML.includes('control-btn--theme'), false);
   assert.equal(dock.innerHTML.includes('control-btn--sound'), true);
   volumeSlider.value = '57';
@@ -340,6 +447,15 @@ test('dock remove tema, mantém música e lê controles sem falar o PIN digitado
   assert.equal(storage.get('exatas-play-volume'), '57');
   assert.equal(volumeValue.value, '57%');
   assert.equal(audioContextCreations, 0);
+
+  voiceRateSlider.value = '1.3';
+  voiceRateSlider.handlers.input();
+  assert.equal(storage.get('genios-voice-rate'), '1.3');
+  assert.equal(voiceRateValue.value, '1.3×');
+  highContrastToggle.checked = true;
+  highContrastToggle.handlers.change();
+  assert.equal(storage.get('genios-high-contrast'), 'true');
+  assert.equal(rootClasses.has('high-contrast'), true);
 
   voiceButton.handlers.click();
   assert.equal(storage.get('genios-voice-guide'), 'true');
@@ -349,6 +465,7 @@ test('dock remove tema, mantém música e lê controles sem falar o PIN digitado
   enterButton.innerText = 'Entrar e jogar';
   documentHandlers.pointerover({ target: enterButton, relatedTarget: null });
   assert.match(spoken.at(-1), /Entrar e jogar/);
+  assert.equal(spokenRates.at(-1), 1.3);
 
   const pinInput = element();
   pinInput.matchSelectors = ['input[type="password"]'];
@@ -358,6 +475,12 @@ test('dock remove tema, mantém música e lê controles sem falar o PIN digitado
   documentHandlers.focusin({ target: pinInput, relatedTarget: null });
   assert.match(spoken.at(-1), /PIN secreto/);
   assert.equal(spoken.at(-1).includes(pinInput.value), false);
+});
+
+test('tela de jogo não duplica IDs de controles', () => {
+  const html = fs.readFileSync(new URL('../jogo.html', import.meta.url), 'utf8');
+  const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
+  assert.equal(new Set(ids).size, ids.length, 'IDs duplicados quebram os listeners dos controles');
 });
 
 test('marca usa o GIF animado nos cinco cabeçalhos internos', () => {

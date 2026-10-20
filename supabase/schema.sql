@@ -13,6 +13,31 @@ create table if not exists profiles (
 alter table profiles add column if not exists email text;
 alter table profiles add column if not exists account_type text not null default 'school';
 
+create table if not exists teacher_accounts (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  school_name text not null,
+  display_name text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists teacher_classes (
+  teacher_id uuid not null references teacher_accounts(user_id) on delete cascade,
+  turma text not null,
+  primary key (teacher_id, turma)
+);
+
+alter table teacher_accounts enable row level security;
+alter table teacher_classes enable row level security;
+revoke all on table teacher_accounts, teacher_classes from anon, authenticated;
+grant select on table teacher_accounts, teacher_classes to authenticated;
+
+drop policy if exists teacher_accounts_read_self on teacher_accounts;
+create policy teacher_accounts_read_self on teacher_accounts
+  for select to authenticated using (user_id = auth.uid());
+drop policy if exists teacher_classes_read_self on teacher_classes;
+create policy teacher_classes_read_self on teacher_classes
+  for select to authenticated using (teacher_id = auth.uid());
+
 create table if not exists game_sessions (
   id uuid primary key default gen_random_uuid(),
   profile_id uuid references profiles(id) on delete cascade,
@@ -112,6 +137,7 @@ create table if not exists school_access_codes (
   code_hash text primary key,
   school_name text not null,
   turma text not null,
+  created_by uuid references teacher_accounts(user_id) on delete set null,
   enabled boolean not null default true,
   max_uses integer not null default 100 check (max_uses > 0),
   used_count integer not null default 0 check (used_count >= 0),
@@ -119,8 +145,85 @@ create table if not exists school_access_codes (
   created_at timestamptz not null default now()
 );
 
+alter table school_access_codes add column if not exists created_by uuid references teacher_accounts(user_id) on delete set null;
+
 alter table school_access_codes enable row level security;
 revoke all on table school_access_codes from anon, authenticated;
+grant select on table school_access_codes to authenticated;
+drop policy if exists teachers_read_own_access_codes on school_access_codes;
+create policy teachers_read_own_access_codes on school_access_codes
+  for select to authenticated
+  using (
+    created_by = auth.uid()
+    and exists (
+      select 1 from teacher_classes
+      where teacher_id = auth.uid() and turma = school_access_codes.turma
+    )
+  );
+
+create or replace function public.create_school_access_code(
+  p_code_hash text,
+  p_turma text,
+  p_max_uses integer default 100,
+  p_expires_at timestamptz default null
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $function$
+declare
+  code_created boolean;
+begin
+  if auth.uid() is null
+     or p_code_hash !~ '^[a-f0-9]{64}$'
+     or p_max_uses not between 1 and 500
+     or not exists (
+       select 1 from public.teacher_classes
+       where teacher_id = auth.uid() and turma = btrim(p_turma)
+     ) then
+    return false;
+  end if;
+
+  insert into public.school_access_codes (code_hash, school_name, turma, created_by, max_uses, expires_at)
+  select p_code_hash, teacher.school_name, btrim(p_turma), auth.uid(), p_max_uses, p_expires_at
+    from public.teacher_accounts as teacher
+   where teacher.user_id = auth.uid()
+  on conflict (code_hash) do nothing
+  returning true into code_created;
+
+  return coalesce(code_created, false);
+end;
+$function$;
+
+create or replace function public.revoke_school_access_code(p_code_hash text, p_turma text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $function$
+declare
+  code_revoked boolean;
+begin
+  update public.school_access_codes
+     set enabled = false
+   where code_hash = p_code_hash
+     and turma = btrim(p_turma)
+     and created_by = auth.uid()
+     and exists (
+       select 1 from public.teacher_classes
+       where teacher_id = auth.uid() and turma = btrim(p_turma)
+     )
+  returning true into code_revoked;
+
+  return coalesce(code_revoked, false);
+end;
+$function$;
+
+revoke all on function public.create_school_access_code(text, text, integer, timestamptz) from public;
+revoke all on function public.revoke_school_access_code(text, text) from public;
+grant execute on function public.create_school_access_code(text, text, integer, timestamptz) to authenticated;
+grant execute on function public.revoke_school_access_code(text, text) to authenticated;
 
 create or replace function public.validate_school_access_code(p_code text, p_turma text)
 returns boolean

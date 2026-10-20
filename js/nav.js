@@ -2,6 +2,8 @@
   const storage = {
     volume: 'exatas-play-volume',
     voiceGuide: 'genios-voice-guide',
+    voiceRate: 'genios-voice-rate',
+    highContrast: 'genios-high-contrast',
   };
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -57,6 +59,17 @@
       <button type="button" class="control-btn control-btn--voice" aria-label="Ativar leitura por voz" aria-pressed="false" title="Ativar leitura por voz">
         <span aria-hidden="true">&#128483;</span>
       </button>
+      <details class="accessibility-menu">
+        <summary aria-label="Configurações de acessibilidade" title="Configurações de acessibilidade">Aa</summary>
+        <div class="accessibility-menu__panel">
+          <label for="voiceRateSlider">Velocidade da leitura <output id="voiceRateValue"></output></label>
+          <input id="voiceRateSlider" type="range" min="0.7" max="1.4" step="0.1" value="1" aria-label="Velocidade da leitura por voz" />
+          <label class="contrast-toggle" for="highContrastToggle">
+            <input id="highContrastToggle" type="checkbox" />
+            <span>Alto contraste</span>
+          </label>
+        </div>
+      </details>
       <div class="sound-control">
         <button type="button" class="control-btn control-btn--sound" aria-label="Ligar música" aria-pressed="false" title="Ligar música">
           <span aria-hidden="true">&#9835;</span>
@@ -75,6 +88,9 @@
     const soundButton = controls.querySelector('.control-btn--sound');
     const volumeSlider = controls.querySelector('.volume-slider');
     const volumeValue = controls.querySelector('.volume-value');
+    const voiceRateSlider = controls.querySelector('#voiceRateSlider');
+    const voiceRateValue = controls.querySelector('#voiceRateValue');
+    const highContrastToggle = controls.querySelector('#highContrastToggle');
     const music = createMusicController(soundButton);
     const storedVolume = localStorage.getItem(storage.volume);
     const savedVolume = storedVolume === null ? 36 : Number(storedVolume);
@@ -84,7 +100,24 @@
     volumeSlider.style.setProperty('--volume-progress', `${initialVolume}%`);
     volumeValue.value = `${initialVolume}%`;
     music.setVolume(initialVolume / 100);
-    setupVoiceGuide(voiceButton);
+    const storedVoiceRate = Number(localStorage.getItem(storage.voiceRate));
+    const initialVoiceRate = Number.isFinite(storedVoiceRate) && storedVoiceRate > 0 ? storedVoiceRate : 1;
+    voiceRateSlider.value = String(initialVoiceRate);
+    voiceRateValue.value = `${initialVoiceRate.toFixed(1)}×`;
+    highContrastToggle.checked = localStorage.getItem(storage.highContrast) === 'true';
+    document.documentElement.classList.toggle('high-contrast', highContrastToggle.checked);
+    setupVoiceGuide(voiceButton, voiceRateSlider);
+
+    voiceRateSlider.addEventListener('input', () => {
+      const rate = Number(voiceRateSlider.value);
+      localStorage.setItem(storage.voiceRate, String(rate));
+      voiceRateValue.value = `${rate.toFixed(1)}×`;
+    });
+
+    highContrastToggle.addEventListener('change', () => {
+      document.documentElement.classList.toggle('high-contrast', highContrastToggle.checked);
+      localStorage.setItem(storage.highContrast, String(highContrastToggle.checked));
+    });
 
     soundButton.addEventListener('click', () => {
       if (music.isPlaying()) {
@@ -114,7 +147,7 @@
     });
   }
 
-  function setupVoiceGuide(button) {
+  function setupVoiceGuide(button, rateSlider) {
     const synthesis = window.speechSynthesis;
     const supported = synthesis && typeof window.SpeechSynthesisUtterance === 'function';
     let enabled = localStorage.getItem(storage.voiceGuide) === 'true';
@@ -151,7 +184,7 @@
       synthesis.cancel();
       const utterance = new window.SpeechSynthesisUtterance(cleanText);
       utterance.lang = 'pt-BR';
-      utterance.rate = 0.96;
+      utterance.rate = Number(rateSlider.value) || 1;
       utterance.pitch = 1.04;
       const portugueseVoice = synthesis.getVoices().find((voice) => voice.lang.toLowerCase().startsWith('pt'));
       if (portugueseVoice) utterance.voice = portugueseVoice;

@@ -7,9 +7,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=22" />
+  <link rel="stylesheet" href="css/style.css?v=23" />
 </head>
 <body>
+  <a class="skip-link" href="#questionPrompt">Ir direto para a questão</a>
 
   <header class="topbar">
     <div class="topbar__inner">
@@ -40,17 +41,75 @@
         <div class="game-hud__item">⏱️ <span id="tempo">00:00</span></div>
       </div>
 
+      <section class="game-settings" aria-label="Opções da partida">
+        <label class="game-setting-field" for="goalTarget">
+          <span>Meta de acertos por etapa</span>
+          <select id="goalTarget">
+            <option value="1">1 acerto</option>
+            <option value="2" selected>2 acertos</option>
+            <option value="3">3 acertos</option>
+            <option value="4">4 acertos</option>
+          </select>
+        </label>
+        <label class="game-setting-toggle">
+          <input type="checkbox" id="untimedMode" />
+          <span>Sem cronômetro</span>
+        </label>
+        <button type="button" class="btn btn--ghost" id="pauseGameButton" aria-pressed="false">Pausar</button>
+      </section>
+
       <div class="progress-bar game-progress" style="margin-bottom:24px;">
-        <div class="progress-bar__fill" id="progressBar" style="width: 0%;"></div>
+        <div class="progress-bar__fill" id="progressBar" role="progressbar" aria-label="Progresso da fase" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="width: 0%;"></div>
       </div>
 
       <div class="card question-card">
-        <span class="eyebrow" id="questionMeta">Pergunta 1 de 10 · Adição</span>
+        <span class="eyebrow" id="questionMeta" role="status" aria-live="polite">Pergunta 1 de 10 · Adição</span>
+        <div class="question-tools" aria-label="Ferramentas da questão">
+          <button type="button" class="btn btn--ghost" id="readQuestionButton">Ouvir questão</button>
+          <button type="button" class="btn btn--ghost" id="toggleScratchButton" aria-expanded="false" aria-controls="scratchBoard">Abrir rascunho</button>
+          <button type="button" class="btn btn--ghost" id="reportQuestionButton" aria-expanded="false" aria-controls="questionReportForm">Relatar questão</button>
+        </div>
+        <section class="scratch-board" id="scratchBoard" aria-label="Quadro de rascunho" hidden>
+          <div class="scratch-board__toolbar" role="toolbar" aria-label="Ferramentas do quadro">
+            <button type="button" class="scratch-tool is-active" id="scratchPencil" aria-pressed="true">Lápis</button>
+            <button type="button" class="scratch-tool" id="scratchEraser" aria-pressed="false">Borracha</button>
+            <label class="scratch-size-label" for="scratchSize">Espessura</label>
+            <input type="range" id="scratchSize" min="2" max="18" value="5" aria-label="Espessura do traço" />
+            <button type="button" class="scratch-tool" id="scratchClear">Limpar tudo</button>
+            <button type="button" class="scratch-tool scratch-tool--save" id="scratchSave">Salvar desenho</button>
+          </div>
+          <div class="scratch-board__colors" role="group" aria-label="Cor do lápis">
+            <button type="button" class="scratch-color is-active" data-color="#153a33" aria-label="Verde escuro" aria-pressed="true"></button>
+            <button type="button" class="scratch-color" data-color="#d84444" aria-label="Vermelho" aria-pressed="false"></button>
+            <button type="button" class="scratch-color" data-color="#2774c8" aria-label="Azul" aria-pressed="false"></button>
+            <button type="button" class="scratch-color" data-color="#e5a82e" aria-label="Amarelo" aria-pressed="false"></button>
+            <button type="button" class="scratch-color" data-color="#263238" aria-label="Grafite" aria-pressed="false"></button>
+          </div>
+          <canvas class="scratch-canvas" id="scratchCanvas" width="1200" height="480" aria-label="Quadro para escrever contas com mouse ou toque; use setas para mover o lápis, Shift mais seta para desenhar, e Enter para terminar o traço" tabindex="0"></canvas>
+          <p class="scratch-feedback" id="scratchFeedback" role="status" aria-live="polite"></p>
+        </section>
+        <form class="question-report" id="questionReportForm" hidden>
+          <label for="questionReportReason">O que está errado nesta questão?</label>
+          <select id="questionReportReason" required>
+            <option value="">Escolha um motivo</option>
+            <option value="enunciado">Enunciado confuso</option>
+            <option value="visual">Exemplo visual incorreto</option>
+            <option value="answer">Resposta ou alternativa incorreta</option>
+            <option value="other">Outro problema</option>
+          </select>
+          <textarea id="questionReportDetails" maxlength="400" placeholder="Descreva o problema (opcional)"></textarea>
+          <div class="question-report__actions">
+            <button type="submit" class="btn btn--primary">Enviar relato</button>
+            <button type="button" class="btn btn--ghost" id="cancelQuestionReport">Cancelar</button>
+          </div>
+          <p id="questionReportFeedback" role="status" aria-live="polite"></p>
+        </form>
         <div class="question-visual" id="questionVisual" aria-label="Exemplo visual da pergunta"></div>
         <aside class="question-example" id="questionExample" aria-label="Exemplo prático" hidden></aside>
-        <div class="question-card__prompt" id="questionPrompt">Carregando...</div>
+        <div class="question-card__prompt" id="questionPrompt" role="status" aria-live="polite" tabindex="-1">Carregando...</div>
 
-        <div class="options-grid" id="optionsGrid"></div>
+        <div class="options-grid" id="optionsGrid" role="group" aria-label="Opções de resposta"></div>
+        <p id="answerFeedback" class="answer-feedback" role="status" aria-live="polite"></p>
 
         <div class="progress-dots" id="progressDots"></div>
       </div>
@@ -61,11 +120,21 @@
     </div>
   </main>
 
+  <div class="game-pause-overlay" id="gamePauseOverlay" hidden>
+    <section class="game-pause-panel" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+      <span class="eyebrow">Pausa</span>
+      <h2 id="pauseTitle">Sua aventura está pausada</h2>
+      <p id="pauseStatus">O progresso desta partida fica salvo neste dispositivo.</p>
+      <button type="button" class="btn btn--primary" id="resumeGameButton">Continuar</button>
+      <button type="button" class="btn btn--ghost" id="restartGameButton">Começar de novo</button>
+    </section>
+  </div>
+
   <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
 
-  <script src="js/app-state.js?v=9"></script>
-  <script type="module" src="js/game-runner.js?v=9"></script>
-  <script src="js/nav.js?v=3"></script>
+  <script src="js/app-state.js?v=12"></script>
+  <script type="module" src="js/game-runner.js?v=10"></script>
+  <script src="js/nav.js?v=4"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const player = window.GeniosApp?.getPlayer?.();

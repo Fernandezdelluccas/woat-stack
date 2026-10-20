@@ -21,22 +21,22 @@ Use a raiz do repositório como Root Directory, Framework Preset `Other` e deixe
 
 ## Acesso escolar e visitante
 
-Crianças entram com nome/apelido e PIN de quatro dígitos. O perfil escolar também pede turma e o código provisório `ESCOLA2026`; o cadastro visitante não pede código. Este código está no JavaScript público e serve apenas para demonstração: qualquer pessoa que inspecione o site pode descobri-lo, então não use como controle real de acesso. Visitantes não consultam nem pontuam no ranking interno.
+Crianças entram com nome/apelido e PIN de quatro dígitos. O perfil escolar pede turma e um código privado fornecido pelo professor; o cadastro visitante não pede código. O código é validado pelo RPC do Supabase e não há código provisório embutido no site. Se o RPC ainda não estiver configurado, o cadastro escolar é bloqueado. Visitantes não consultam nem pontuam no ranking interno.
 
-Para substituir o código provisório por códigos privados verificados pelo Supabase:
+Para habilitar o cadastro escolar e o painel docente:
 
 1. Aplique `supabase/schema.sql` no SQL Editor do Supabase.
-2. Gere um código aleatório longo por turma e execute, substituindo os valores:
+2. Crie contas de professor no Supabase Auth. Associe cada UUID de usuário à escola e às turmas autorizadas nas tabelas `teacher_accounts` e `teacher_classes`.
+3. O professor autorizado cria códigos privados no painel. O site guarda somente o hash SHA-256; o código em texto é exibido uma única vez. Cada código pode ser limitado por quantidade de cadastros e validade, e pode ser revogado.
+
+Exemplo de provisionamento inicial de professor, substituindo o UUID e os nomes:
 
 ```sql
-insert into public.school_access_codes (code_hash, school_name, turma)
-values (
-  encode(digest(upper('CODIGO-SECRETO-LONGO-DA-TURMA'), 'sha256'), 'hex'),
-  'Nome da escola',
-  '4º ano'
-);
-```
+insert into public.teacher_accounts (user_id, school_name, display_name)
+values ('UUID-DO-USUARIO-AUTH', 'Nome da escola', 'Nome do professor');
 
-3. Entregue o código somente aos alunos daquela turma. Cada código permite até 100 cadastros e pode ser desativado na tabela `school_access_codes`.
+insert into public.teacher_classes (teacher_id, turma)
+values ('UUID-DO-USUARIO-AUTH', '4º ano');
+```
 
 Os perfis, partidas, cosméticos, desafios e conquistas ainda são guardados neste navegador e dispositivo; não há sincronização remota de contas. Pontuações remotas estão fechadas para acesso anônimo até a configuração de autenticação e políticas RLS por aluno/turma. A chave `anon` do Supabase é pública e não deve ser usada como única autorização.

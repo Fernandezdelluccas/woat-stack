@@ -1,7 +1,4 @@
 (function () {
-  const VALID_EMAIL = 'professor@escola.com';
-  const VALID_PASSWORD = '123456';
-
   const loginSection = document.getElementById('loginSection');
   const dashboardSection = document.getElementById('dashboardSection');
   const form = document.getElementById('professorLoginForm');
@@ -12,6 +9,7 @@
   const cancelButton = document.getElementById('cancelProfessorLogin');
   const teacherNavigation = document.getElementById('teacherNavigation');
   const brandLink = document.querySelector('.topbar__inner .brand');
+  let authAttempt = 0;
 
   if (!form || !loginSection || !dashboardSection) {
     return;
@@ -35,7 +33,7 @@
   const previousPage = getPreviousPage();
 
   function setLoggedIn(value) {
-    if (window.GeniosApp) {
+    if (window.GeniosApp?.setTeacherSession) {
       window.GeniosApp.setTeacherSession(value);
     } else {
       localStorage.setItem('genios-professor-auth', value ? 'true' : 'false');
@@ -50,21 +48,31 @@
   }
 
   function returnToStudentLogin() {
+    authAttempt += 1;
     window.location.replace('index.html');
   }
 
   function returnToPreviousPage() {
+    authAttempt += 1;
     window.location.replace(previousPage);
   }
 
-  function isLoggedIn() {
-    if (window.GeniosApp && typeof window.GeniosApp.isTeacherLoggedIn === 'function') {
-      return window.GeniosApp.isTeacherLoggedIn();
+  async function hasTeacherAccess(userId) {
+    const { data, error } = await window.supabaseClient
+      .from('teacher_accounts')
+      .select('user_id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Erro ao verificar acesso de professor:', error.message);
+      return false;
     }
-    return localStorage.getItem('genios-professor-auth') === 'true';
+    return Boolean(data?.user_id);
   }
 
-  function showError() {
+  function showError(message) {
+    errorText.textContent = message;
     errorText.style.display = 'block';
   }
 
@@ -72,23 +80,44 @@
     errorText.style.display = 'none';
   }
 
-  form.addEventListener('submit', (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    const currentAttempt = ++authAttempt;
 
     const email = emailInput.value.trim();
     const password = passwordInput.value.trim();
-
-    if (email === VALID_EMAIL && password === VALID_PASSWORD) {
-      setLoggedIn(true);
-      hideError();
-      form.reset();
+    if (!window.supabaseClient) {
+      showError('Autenticação indisponível. Peça ao administrador para configurar o Supabase.');
       return;
     }
 
-    showError();
+    const { data, error } = await window.supabaseClient.auth.signInWithPassword({ email, password });
+    if (currentAttempt !== authAttempt) return;
+    if (error || !data.user) {
+      showError('E-mail ou senha incorretos.');
+      return;
+    }
+
+    const authorizedTeacher = await hasTeacherAccess(data.user.id);
+    if (currentAttempt !== authAttempt) {
+      await window.supabaseClient.auth.signOut();
+      return;
+    }
+    if (!authorizedTeacher) {
+      await window.supabaseClient.auth.signOut();
+      setLoggedIn(false);
+      showError('Esta conta não está autorizada para acessar o painel do professor.');
+      return;
+    }
+
+    setLoggedIn(true);
+    hideError();
+    form.reset();
+    document.dispatchEvent(new CustomEvent('professor:login', { detail: { userId: data.user.id } }));
   });
 
-  logoutButton.addEventListener('click', () => {
+  logoutButton.addEventListener('click', async () => {
+    if (window.supabaseClient) await window.supabaseClient.auth.signOut();
     setLoggedIn(false);
     hideError();
     returnToStudentLogin();
@@ -102,5 +131,32 @@
     returnToPreviousPage();
   });
 
-  setLoggedIn(isLoggedIn());
+  async function restoreSession() {
+    if (!window.supabaseClient) {
+      setLoggedIn(false);
+      return;
+    }
+
+    const currentAttempt = authAttempt;
+    const { data, error } = await window.supabaseClient.auth.getSession();
+    if (currentAttempt !== authAttempt) return;
+    const user = data?.session?.user;
+    if (!user) {
+      setLoggedIn(false);
+      return;
+    }
+
+    const authorizedTeacher = await hasTeacherAccess(user.id);
+    if (currentAttempt !== authAttempt) return;
+    if (error || !authorizedTeacher) {
+      await window.supabaseClient.auth.signOut();
+      setLoggedIn(false);
+      return;
+    }
+
+    setLoggedIn(true);
+    document.dispatchEvent(new CustomEvent('professor:login', { detail: { userId: user.id } }));
+  }
+
+  restoreSession();
 })();
