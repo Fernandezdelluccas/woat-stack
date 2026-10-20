@@ -341,6 +341,15 @@ test('jogo expõe atalho de teclado e progresso da fase para tecnologia assistiv
   assert.ok(runner.includes("setAttribute('aria-valuenow', String(Math.round(percent)))"));
 });
 
+test('Vercel deixa arquivos estáticos passarem e reescreve somente a entrada', () => {
+  const config = JSON.parse(fs.readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  assert.deepEqual(config.rewrites, [
+    { source: '/', destination: '/index.html' },
+    { source: '/index', destination: '/index.html' },
+  ]);
+  assert.equal(Object.hasOwn(config, 'routes'), false);
+});
+
 test('códigos escolares e tabelas de ranking têm proteção server-side no schema', () => {
   const schema = fs.readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8');
   for (const marker of [
