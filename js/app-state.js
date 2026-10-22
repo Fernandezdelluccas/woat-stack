@@ -14,6 +14,7 @@
     character: 'genios-character',
     achievements: 'genios-achievements',
     challenges: 'genios-challenges',
+    classChallenges: 'genios-class-challenges',
   };
 
   const cosmeticsCatalog = [
@@ -186,6 +187,17 @@
       expiresAt: Date.now() + 60_000,
     };
     return { ok: true };
+  }
+
+  function authorizeLocalSchoolEnrollment({ turma }) {
+    const cleanClass = String(turma || '').trim();
+    if (!cleanClass) return { ok: false, message: 'Selecione a turma para o perfil local.' };
+    schoolEnrollmentPermit = {
+      turma: cleanClass,
+      expiresAt: Date.now() + 60_000,
+      local: true,
+    };
+    return { ok: true, local: true };
   }
 
   function registerUser({ nome, email, password, turma, avatar, accountType }) {
@@ -516,21 +528,26 @@
     return history;
   }
 
-  function getChallenges() {
-    return readScopedJson(STORAGE_KEYS.challenges, []);
+  function getChallenges(turma) {
+    const challenges = readJson(STORAGE_KEYS.classChallenges, []);
+    if (!Array.isArray(challenges)) return [];
+    const cleanClass = String(turma || '').trim();
+    return cleanClass ? challenges.filter((challenge) => challenge.turma === cleanClass) : challenges;
   }
 
   function createChallenge(challenge) {
     const clean = {
-      id: `challenge-${Date.now()}`,
+      id: `challenge-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       title: String(challenge?.title || '').trim().slice(0, 80),
       game: ['adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas'].includes(challenge?.game) ? challenge.game : 'adicao',
-      target: Math.min(20, Math.max(1, Number(challenge?.target || 5))),
+      target: Math.min(4, Math.max(1, Math.floor(Number(challenge?.target) || 2))),
+      turma: String(challenge?.turma || '').trim().slice(0, 80),
       createdAt: new Date().toISOString(),
     };
     if (!clean.title) return { ok: false, message: 'Digite um nome para o desafio.' };
-    const challenges = [clean, ...getChallenges()].slice(0, 10);
-    writeScopedJson(STORAGE_KEYS.challenges, challenges);
+    if (!clean.turma) return { ok: false, message: 'Selecione a turma que receberá o desafio.' };
+    const challenges = [clean, ...getChallenges()].slice(0, 100);
+    writeJson(STORAGE_KEYS.classChallenges, challenges);
     return { ok: true, challenge: clean };
   }
 
@@ -651,5 +668,6 @@
     setTeacherSession,
     isTeacherLoggedIn,
     authorizeSchoolEnrollment,
+    authorizeLocalSchoolEnrollment,
   };
 })();

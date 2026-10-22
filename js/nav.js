@@ -8,10 +8,44 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     setupAvatarPicker();
+    setupTeacherNavigationLink();
+    setupStudentLogoutButton();
     highlightCurrentPage();
     setupControlDock();
     renderUserChip();
   });
+
+  function setupTeacherNavigationLink() {
+    const current = window.location.pathname.split('/').pop() || 'index.html';
+    const nav = document.querySelector?.('.nav');
+    if (!nav || current === 'professor.html' || nav.querySelector('a[href="professor.html"]')) return;
+
+    const link = document.createElement('a');
+    link.href = 'professor.html';
+    link.textContent = 'Área do professor';
+    nav.appendChild(link);
+  }
+
+  function setupStudentLogoutButton() {
+    const current = window.location.pathname.split('/').pop() || 'index.html';
+    if (!['jogo.html', 'matematica.html', 'ranking.html'].includes(current)) return;
+    if (document.getElementById('playerLogoutButton')) return;
+
+    const userChip = document.querySelector?.('.user-chip');
+    if (!userChip) return;
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'account-logout-button';
+    button.textContent = 'Sair';
+    button.setAttribute('aria-label', 'Sair da conta');
+    button.title = 'Sair da conta';
+    button.addEventListener('click', () => {
+      window.GeniosApp?.logoutUser?.();
+      window.location.replace('index.html');
+    });
+    userChip.after(button);
+  }
 
   function renderUserChip() {
     const chip = document.getElementById('userChip');
@@ -255,7 +289,7 @@
     const bass = [261.63, 329.63, 392, 329.63];
 
     function ensureAudio() {
-      if (audioContext) return true;
+      if (audioContext && audioContext.state !== 'closed') return true;
 
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       if (!AudioContextClass) {
@@ -268,6 +302,7 @@
       masterGain = audioContext.createGain();
       masterGain.gain.value = volume;
       masterGain.connect(audioContext.destination);
+      audioContext.addEventListener?.('statechange', handleAudioStateChange);
       return true;
     }
 
@@ -302,21 +337,52 @@
     }
 
     function setButtonState() {
-      button.classList.toggle('is-playing', playing);
-      button.setAttribute('aria-pressed', String(playing));
-      button.setAttribute('aria-label', playing ? 'Pausar música' : 'Ligar música');
-      button.title = playing ? 'Pausar música' : 'Ligar música';
+      const audible = isAudible();
+      button.classList.toggle('is-playing', audible);
+      button.setAttribute('aria-pressed', String(audible));
+      button.setAttribute('aria-label', audible ? 'Pausar música' : 'Ligar música');
+      button.title = audible ? 'Pausar música' : 'Ligar música';
     }
+
+    function isAudible() {
+      return playing && audioContext?.state !== 'suspended' && audioContext?.state !== 'closed';
+    }
+
+    function resumeMusic() {
+      if (!playing || volume <= 0 || !audioContext || document.hidden) return;
+      if (audioContext.state === 'running') {
+        window.clearTimeout(timer);
+        tick();
+        setButtonState();
+        return;
+      }
+
+      Promise.resolve(audioContext.resume()).then(() => {
+        if (!playing || document.hidden) return;
+        window.clearTimeout(timer);
+        tick();
+        setButtonState();
+      }).catch(() => setButtonState());
+    }
+
+    function handleAudioStateChange() {
+      setButtonState();
+      if (audioContext?.state === 'suspended') {
+        window.clearTimeout(timer);
+        if (!document.hidden) resumeMusic();
+      }
+    }
+
+    document.addEventListener('visibilitychange', resumeMusic);
 
     return {
       start() {
         if (volume <= 0 || !ensureAudio()) return;
 
-        audioContext.resume();
         playing = true;
         window.clearTimeout(timer);
-        tick();
         setButtonState();
+        resumeMusic();
       },
       stop() {
         playing = false;
@@ -330,7 +396,7 @@
         }
       },
       isPlaying() {
-        return playing;
+        return isAudible();
       },
     };
   }

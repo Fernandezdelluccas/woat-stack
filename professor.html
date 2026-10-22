@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=23" />
+  <link rel="stylesheet" href="css/style.css?v=26" />
 </head>
 <body>
 
@@ -52,6 +52,7 @@
         </form>
 
         <button type="button" id="cancelProfessorLogin" class="btn btn--ghost btn--block" style="margin-top:10px;">Cancelar e voltar</button>
+        <p class="hint local-mode-link">Para testar sem Supabase, <a href="professor.html?modo=local">abra o painel local</a>. Ele não libera acesso remoto.</p>
 
         <p class="hint" id="loginError" style="margin-top:16px; color: var(--color-danger-dark); display:none;">
           E-mail ou senha incorretos.
@@ -62,14 +63,27 @@
     <div class="container" id="dashboardSection" style="display:none;">
       <div class="page-head" style="max-width: 720px;">
         <span class="eyebrow">Painel do Professor</span>
-        <h1>Relatórios Consolidados</h1>
-        <p>Acompanhe o desempenho da turma em Matemática: taxa de conclusão, acertos, erros e tempo de uso.</p>
+        <h1>Turmas e missões</h1>
+        <p>Gere um código para novos alunos, publique uma missão para a turma e acompanhe o aprendizado.</p>
         <div style="margin-top: 18px;">
           <button type="button" id="logoutProfessor" class="btn btn--ghost">Sair</button>
         </div>
       </div>
 
-      <section class="card teacher-codes-panel" aria-labelledby="teacherCodesTitle">
+      <section class="teacher-start-guide" aria-labelledby="teacherStartTitle">
+        <h2 id="teacherStartTitle">Como começar</h2>
+        <ol>
+          <li>Escolha a turma e gere um código de cadastro.</li>
+          <li>Compartilhe o código apenas com os alunos dessa turma.</li>
+          <li>Crie uma missão e peça aos alunos para abri-la em Matemática.</li>
+        </ol>
+      </section>
+
+      <p class="local-mode-note" id="localTeacherNotice" hidden>
+        Modo local: crie um aluno em <a href="index.html?modo=local">perfil de turma local</a> e use o mesmo navegador para conferir as missões. Códigos escolares e relatórios reais dependem do Supabase.
+      </p>
+
+      <section class="card teacher-codes-panel" id="teacherCodesPanel" aria-labelledby="teacherCodesTitle">
         <div>
           <span class="eyebrow">Acesso da turma</span>
           <h2 id="teacherCodesTitle">Códigos de cadastro</h2>
@@ -97,7 +111,7 @@
         <div id="schoolCodesList" class="teacher-code-list" aria-live="polite"></div>
       </section>
 
-      <div class="grid grid--narrow" style="margin-bottom: 28px;">
+      <div class="grid grid--narrow" style="margin-bottom: 28px;" hidden>
         <div class="stat-card">
           <div class="stat-card__label">Alunos ativos</div>
           <div class="stat-card__value">28</div>
@@ -123,7 +137,7 @@
       <div class="card challenge-card">
         <span class="eyebrow">Sistema de desafios</span>
         <h3>Defina uma missão para a turma</h3>
-        <p class="hint">O desafio fica salvo neste dispositivo e pode ser conectado ao Supabase depois.</p>
+        <p class="hint">A missão aparece para os alunos da turma quando eles usam este mesmo aparelho. A sincronização entre aparelhos será conectada ao Supabase.</p>
         <form id="challengeForm" class="challenge-form">
           <div class="field">
             <label for="challengeTitle">Nome do desafio</label>
@@ -140,8 +154,18 @@
             </select>
           </div>
           <div class="field">
-            <label for="challengeTarget">Perguntas</label>
-            <input id="challengeTarget" type="number" min="1" max="20" value="5" required />
+            <label for="challengeClass">Turma</label>
+            <select id="challengeClass" required>
+              <option value="1º ano">1º ano</option>
+              <option value="2º ano">2º ano</option>
+              <option value="3º ano">3º ano</option>
+              <option value="4º ano" selected>4º ano</option>
+              <option value="5º ano">5º ano</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="challengeTarget">Meta de acertos por etapa</label>
+            <input id="challengeTarget" type="number" min="1" max="4" value="2" required />
           </div>
           <button class="btn btn--primary" type="submit">Criar desafio</button>
         </form>
@@ -149,7 +173,12 @@
         <div class="challenge-list" id="challengeList"></div>
       </div>
 
-      <div class="grid" style="grid-template-columns: 2fr 1fr; margin-bottom: 28px;">
+      <section class="teacher-report-empty" aria-labelledby="teacherReportTitle">
+        <h2 id="teacherReportTitle">Desempenho da turma</h2>
+        <p>Os relatórios reais aparecerão aqui quando os dados das partidas estiverem conectados ao Supabase.</p>
+      </section>
+
+      <div class="grid" style="grid-template-columns: 2fr 1fr; margin-bottom: 28px;" hidden>
         <div class="card">
           <h3>Acertos x Erros por minijogo</h3>
           <p class="hint mt-0">Dados consolidados dos últimos 7 dias.</p>
@@ -213,10 +242,10 @@
         </div>
       </div>
 
-      <div class="card--flat" style="margin-bottom: 12px;">
+      <div class="card--flat" style="margin-bottom: 12px;" hidden>
         <h3 class="mt-0">Desempenho por aluno</h3>
       </div>
-      <div class="table-wrap">
+      <div class="table-wrap" hidden>
         <table>
           <thead>
             <tr>
@@ -273,7 +302,7 @@
         </table>
       </div>
 
-      <p class="hint text-center" style="margin-top:16px;">
+      <p class="hint text-center" style="margin-top:16px;" hidden>
         Dados de exemplo — este painel será conectado ao banco PostgreSQL (Supabase) para exibir dados reais.
       </p>
     </div>
@@ -283,9 +312,9 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabaseClient.js?v=1"></script>
-  <script src="js/nav.js?v=4"></script>
-  <script src="js/app-state.js?v=12"></script>
-  <script src="js/professor-auth.js?v=5"></script>
+  <script src="js/nav.js?v=6"></script>
+  <script src="js/app-state.js?v=14"></script>
+  <script src="js/professor-auth.js?v=8"></script>
   <script src="js/teacher-access-codes.js?v=1"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -294,9 +323,29 @@
       const feedback = document.getElementById('challengeFeedback');
       if (!form || !window.GeniosApp) return;
       const renderChallenges = () => {
-        list.innerHTML = window.GeniosApp.getChallenges().map((challenge) => `
-          <div class="challenge-item"><strong>${challenge.title}</strong><span>${challenge.game} · ${challenge.target} perguntas</span></div>
-        `).join('') || '<span class="hint">Nenhum desafio criado ainda.</span>';
+        list.replaceChildren();
+        const challenges = window.GeniosApp.getChallenges();
+        if (challenges.length === 0) {
+          const empty = document.createElement('p');
+          empty.className = 'hint';
+          empty.textContent = 'Nenhuma missão criada ainda.';
+          list.appendChild(empty);
+          return;
+        }
+        challenges.forEach((challenge) => {
+          const item = document.createElement('article');
+          item.className = 'challenge-item';
+          const title = document.createElement('strong');
+          title.textContent = `${challenge.turma} · ${challenge.title}`;
+          const details = document.createElement('span');
+          const gameLabels = {
+            adicao: 'Adição', subtracao: 'Subtração', multiplicacao: 'Multiplicação',
+            divisao: 'Divisão', formas: 'Formas geométricas',
+          };
+          details.textContent = `${gameLabels[challenge.game] || 'Minijogo'} · meta de ${challenge.target} acertos por etapa`;
+          item.append(title, details);
+          list.appendChild(item);
+        });
       };
       form.addEventListener('submit', (event) => {
         event.preventDefault();
@@ -304,8 +353,11 @@
           title: document.getElementById('challengeTitle').value,
           game: document.getElementById('challengeGame').value,
           target: document.getElementById('challengeTarget').value,
+          turma: document.getElementById('challengeClass').value,
         });
-        feedback.textContent = result.ok ? 'Desafio criado com sucesso.' : result.message;
+        feedback.textContent = result.ok
+          ? `Missão publicada para ${result.challenge.turma}. Ela aparecerá para os alunos dessa turma neste navegador.`
+          : result.message;
         if (result.ok) { form.reset(); renderChallenges(); }
       });
       renderChallenges();

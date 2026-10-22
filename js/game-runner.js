@@ -1,7 +1,11 @@
-import { buildQuestions, getGameDefinition, formatAnswer } from './game.mjs?v=10';
+import { buildQuestions, getGameDefinition, formatAnswer } from './game.mjs?v=11';
 
 const gameKey = new URLSearchParams(window.location.search).get('game') || 'adicao';
-const manualTutorialRequested = new URLSearchParams(window.location.search).get('tutorial') === 'manual';
+const searchParams = new URLSearchParams(window.location.search);
+const manualTutorialRequested = searchParams.get('tutorial') === 'manual';
+const challengeId = searchParams.get('challenge') || '';
+const challengeTitle = searchParams.get('title') || '';
+const challengeGoal = Math.min(4, Math.max(1, Math.floor(Number(searchParams.get('goal')) || 2)));
 const gameInfo = getGameDefinition(gameKey);
 const baseQuestions = buildQuestions(gameKey, 7);
 const player = window.GeniosApp?.getPlayer?.() || { nome: 'Jogador', turma: '4º ano', avatar: '🦊', coins: 0 };
@@ -15,7 +19,9 @@ const state = {
   seconds: 0,
   timerId: null,
   level: 1,
-  levelTarget: gamePreferences.goalTarget,
+  levelTarget: challengeId ? challengeGoal : gamePreferences.goalTarget,
+  challengeId,
+  challengeTitle,
   retryReason: '',
   totalCorrect: 0,
   totalWrong: 0,
@@ -53,7 +59,6 @@ const pauseOverlay = document.getElementById('gamePauseOverlay');
 const pauseStatus = document.getElementById('pauseStatus');
 const resumeGameButton = document.getElementById('resumeGameButton');
 const restartGameButton = document.getElementById('restartGameButton');
-const questionCard = document.querySelector('.question-card');
 const scratchBoard = document.getElementById('scratchBoard');
 const scratchCanvas = document.getElementById('scratchCanvas');
 const scratchFeedback = document.getElementById('scratchFeedback');
@@ -90,7 +95,10 @@ function getQuestionsForLevel() {
 
 let currentQuestions = getQuestionsForLevel();
 const savedGameDraft = window.GeniosApp?.getGameDraft?.(gameKey);
-const isRestoringGame = Boolean(savedGameDraft?.questions?.length);
+const isRestoringGame = Boolean(
+  savedGameDraft?.questions?.length
+  && (savedGameDraft.challengeId || '') === challengeId
+);
 
 if (isRestoringGame) {
   Object.assign(state, {
@@ -108,6 +116,8 @@ if (isRestoringGame) {
     answers: savedGameDraft.answers,
     retryReason: savedGameDraft.retryReason,
     untimed: savedGameDraft.untimed,
+    challengeId,
+    challengeTitle,
     awaitingAdvance: Boolean(savedGameDraft.awaitingAdvance),
     pendingDelay: Math.max(0, Number(savedGameDraft.pendingDelay) || 0),
     paused: true,
@@ -140,6 +150,8 @@ function saveCurrentDraft() {
     seconds: state.seconds,
     level: state.level,
     levelTarget: state.levelTarget,
+    challengeId: state.challengeId,
+    challengeTitle: state.challengeTitle,
     totalCorrect: state.totalCorrect,
     totalWrong: state.totalWrong,
     currentStreak: state.currentStreak,
@@ -192,6 +204,13 @@ function schedulePendingAction(action, delay) {
   state.advanceTimerId = window.setTimeout(runPendingAction, delay);
 }
 
+function setPauseBackgroundInert(inert) {
+  Array.from(document.body.children).forEach((element) => {
+    if (element === pauseOverlay || element.tagName === 'SCRIPT') return;
+    element.inert = inert;
+  });
+}
+
 function pauseGame() {
   if (state.paused || state.completed) return;
   state.paused = true;
@@ -203,20 +222,21 @@ function pauseGame() {
     state.advanceTimerId = null;
   }
   saveCurrentDraft();
+  setPauseBackgroundInert(true);
   pauseOverlay.hidden = false;
   pauseGameButton.setAttribute('aria-pressed', 'true');
   pauseGameButton.textContent = 'Continuar';
-  questionCard.inert = true;
   resumeGameButton.focus();
 }
 
 function resumeGame() {
   if (!state.paused) return;
   state.paused = false;
+  setPauseBackgroundInert(false);
   pauseOverlay.hidden = true;
-  questionCard.inert = false;
   pauseGameButton.setAttribute('aria-pressed', 'false');
   pauseGameButton.textContent = 'Pausar';
+  pauseGameButton.focus();
   startTimer();
   if (state.pendingAction) {
     state.pendingAt = Date.now();
@@ -249,7 +269,7 @@ function renderQuestion() {
     return;
   }
 
-  questionMeta.textContent = `${levelMap[state.level]?.label || 'Desafio'} · ${gameInfo.label}`;
+  questionMeta.textContent = `${state.challengeTitle ? `${state.challengeTitle} · ` : ''}${levelMap[state.level]?.label || 'Desafio'} · ${gameInfo.label}`;
   speakToPlayer('LEIA A HISTÓRIA E OBSERVE O EXEMPLO VISUAL. DEPOIS ESCOLHA UMA RESPOSTA.');
   renderQuestionVisual(current.visual);
   if (questionExample) {
@@ -439,18 +459,6 @@ function setupQuestionTools() {
 
   pauseGameButton.setAttribute('aria-pressed', String(state.paused));
   pauseGameButton.textContent = state.paused ? 'Continuar' : 'Pausar';
-  if (isRestoringGame) {
-    pauseStatus.textContent = 'Partida salva encontrada. Continue ou comece novamente.';
-    pauseOverlay.hidden = false;
-    questionCard.inert = true;
-    restartGameButton.hidden = false;
-    scoreEl.textContent = `${state.score} pts`;
-    acertosEl.textContent = `${state.correct} acertos`;
-    errosEl.textContent = `${state.wrong} erros`;
-    tempoEl.textContent = state.untimed ? 'Sem limite' : formatElapsed(state.seconds);
-    renderQuestion();
-  }
-
   pauseGameButton.addEventListener('click', () => {
     if (state.paused) resumeGame();
     else pauseGame();
@@ -459,6 +467,24 @@ function setupQuestionTools() {
   restartGameButton.addEventListener('click', () => {
     window.GeniosApp?.clearGameDraft?.();
     window.location.reload();
+  });
+  pauseOverlay.addEventListener('keydown', (event) => {
+    if (event.key !== 'Tab') return;
+    const focusable = Array.from(pauseOverlay.querySelectorAll('button:not([disabled]):not([hidden]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'));
+    if (focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!pauseOverlay.contains(document.activeElement)) {
+      event.preventDefault();
+      first.focus();
+    } else if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   });
 
   document.getElementById('toggleScratchButton').addEventListener('click', (event) => {
@@ -523,12 +549,13 @@ function setupQuestionTools() {
     pauseGameButton.textContent = 'Continuar';
     pauseStatus.textContent = 'Encontramos uma partida salva. Continue de onde parou ou comece novamente.';
     pauseOverlay.hidden = false;
-    questionCard.inert = true;
+    setPauseBackgroundInert(true);
     restartGameButton.hidden = false;
     scoreEl.textContent = `${state.score} pts`;
     acertosEl.textContent = `${state.correct} acertos`;
     errosEl.textContent = `${state.wrong} erros`;
     tempoEl.textContent = state.untimed ? 'Sem limite' : formatElapsed(state.seconds);
+    resumeGameButton.focus();
     renderQuestion();
   }
 
@@ -791,7 +818,7 @@ function answerQuestion(button, selectedValue, correctValue, explanation) {
     state.bestStreak = Math.max(state.bestStreak, state.currentStreak);
     state.score += 12;
     speakToPlayer(state.correct % 2 === 0 ? 'MANDOU BEM! VOCÊ ENTENDEU A IDEIA.' : 'BOA! ESSE RACIOCÍNIO ESTÁ CERTO.');
-    if (answerFeedback) answerFeedback.textContent = `Acertou! ${formatAnswer(correctValue)}. ${explanation}`;
+    if (answerFeedback) answerFeedback.textContent = `Muito bem! A resposta é ${formatAnswer(correctValue)}. ${explanation}`;
     if (window.GeniosApp && typeof window.GeniosApp.addCoins === 'function') {
       window.GeniosApp.addCoins(10);
     }
@@ -802,7 +829,7 @@ function answerQuestion(button, selectedValue, correctValue, explanation) {
     state.score = Math.max(0, state.score - 4);
     state.retryReason = explanation;
     speakToPlayer(`DICA: ${explanation}`);
-    if (answerFeedback) answerFeedback.textContent = `Vamos revisar: ${explanation}`;
+    if (answerFeedback) answerFeedback.textContent = `Você escolheu ${formatAnswer(selectedValue)}. A resposta correta é ${formatAnswer(correctValue)}. ${explanation}`;
   }
 
   scoreEl.textContent = `${state.score} pts`;

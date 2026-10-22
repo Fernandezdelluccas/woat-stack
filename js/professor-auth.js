@@ -9,6 +9,7 @@
   const cancelButton = document.getElementById('cancelProfessorLogin');
   const teacherNavigation = document.getElementById('teacherNavigation');
   const brandLink = document.querySelector('.topbar__inner .brand');
+  const localDemo = window.location.search === '?modo=local';
   let authAttempt = 0;
 
   if (!form || !loginSection || !dashboardSection) {
@@ -49,7 +50,7 @@
 
   function returnToStudentLogin() {
     authAttempt += 1;
-    window.location.replace('index.html');
+    window.location.replace(localDemo ? 'index.html?modo=local' : 'index.html');
   }
 
   function returnToPreviousPage() {
@@ -117,7 +118,7 @@
   });
 
   logoutButton.addEventListener('click', async () => {
-    if (window.supabaseClient) await window.supabaseClient.auth.signOut();
+    if (!localDemo && window.supabaseClient) await window.supabaseClient.auth.signOut();
     setLoggedIn(false);
     hideError();
     returnToStudentLogin();
@@ -132,6 +133,13 @@
   });
 
   async function restoreSession() {
+    if (localDemo) {
+      setLoggedIn(true);
+      document.getElementById('localTeacherNotice').hidden = false;
+      document.getElementById('teacherCodesPanel').hidden = true;
+      return;
+    }
+
     if (!window.supabaseClient) {
       setLoggedIn(false);
       return;

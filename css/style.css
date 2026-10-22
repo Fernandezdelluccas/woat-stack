@@ -1251,18 +1251,21 @@ tbody tr:hover {
 .game-shell {
   display: grid;
   width: 100%;
-  max-width: 1100px;
-  grid-template-columns: minmax(0, 1.9fr) minmax(180px, 0.8fr);
+  max-width: 1440px;
+  grid-template-columns: minmax(0, 1fr) minmax(170px, 220px);
   grid-template-areas:
     "actions actions"
     "hud hud"
+    "settings settings"
     "progress progress"
     "question companion";
-  gap: 18px;
+  gap: 14px 24px;
   align-items: start;
   margin: 0 auto;
   position: relative;
 }
+
+.main > .container.game-shell { max-width: 1440px; }
 
 .game-shell__actions { grid-area: actions; }
 
@@ -1299,6 +1302,13 @@ tbody tr:hover {
   padding: clamp(20px, 3vw, 36px) clamp(16px, 2.5vw, 28px);
 }
 
+.question-content {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
 .question-card__prompt {
   font-family: var(--font-heading);
   font-size: clamp(1.55rem, 2.8vw, 2.15rem);
@@ -1323,7 +1333,7 @@ tbody tr:hover {
   grid-area: settings;
   align-items: center;
   justify-content: flex-end;
-  margin-top: -8px;
+  margin-top: 0;
 }
 
 .game-setting-field {
@@ -1557,9 +1567,31 @@ tbody tr:hover {
 
 .options-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 24px;
+}
+
+@media (min-width: 900px) {
+  .question-content {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    grid-template-areas:
+      "visual prompt"
+      "example prompt"
+      "options options"
+      "feedback feedback"
+      "dots dots";
+    align-items: center;
+    column-gap: 24px;
+    row-gap: 10px;
+  }
+
+  .question-visual { grid-area: visual; margin: 0; }
+  .question-example { grid-area: example; margin: 0; }
+  .question-card__prompt { grid-area: prompt; margin: 0; }
+  .options-grid { grid-area: options; margin: 8px 0 0; }
+  .answer-feedback { grid-area: feedback; }
+  .progress-dots { grid-area: dots; }
 }
 
 .option-btn {
@@ -2226,14 +2258,14 @@ tbody tr:hover {
 
 .game-companion__avatar {
   display: grid;
-  width: min(100%, 270px);
+  width: min(100%, 190px);
   height: auto;
   aspect-ratio: 1;
   place-items: center;
   border: 0;
   background: transparent;
   box-shadow: none;
-  font-size: clamp(10rem, 19vw, 15rem);
+  font-size: clamp(6rem, 12vw, 8rem);
   line-height: 1;
   filter: drop-shadow(0 8px 5px rgba(8, 11, 20, 0.28));
   will-change: transform;
@@ -2480,7 +2512,7 @@ tbody tr:hover {
 
 .challenge-form {
   display: grid;
-  grid-template-columns: 2fr 1fr 0.7fr auto;
+  grid-template-columns: minmax(180px, 2fr) minmax(135px, 1fr) minmax(120px, 1fr) minmax(130px, 1fr) auto;
   gap: 12px;
   align-items: end;
   margin-top: 18px;
@@ -2496,6 +2528,45 @@ tbody tr:hover {
   color: var(--color-accent-dark);
   font-weight: 800;
 }
+
+.teacher-start-guide,
+.teacher-report-empty {
+  margin: 20px 0;
+  padding: 18px 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.teacher-start-guide h2,
+.teacher-report-empty h2 { margin: 0 0 10px; font-family: var(--font-heading); }
+.teacher-start-guide ol { display: grid; gap: 8px; margin: 0; padding-left: 1.4rem; color: var(--color-text-soft); }
+.teacher-report-empty p { margin: 0; color: var(--color-text-soft); }
+.local-mode-note { margin: 16px 0; padding: 12px 14px; border-left: 4px solid var(--color-secondary); background: var(--color-hover); color: var(--color-text); line-height: 1.5; }
+.local-mode-link { margin-top: 12px; font-size: 0.84rem; }
+.local-mode-link a,
+.local-mode-note a { color: var(--color-primary-dark); font-weight: 900; }
+
+.account-logout-button {
+  min-height: 38px;
+  padding: 7px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-glass);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.class-challenges { display: grid; gap: 14px; margin: 24px 0; }
+.class-challenges[hidden] { display: none; }
+.class-challenges h2 { margin: 4px 0 0; font-family: var(--font-heading); }
+.class-challenges__list { display: grid; gap: 10px; }
+.class-challenge { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 14px 0; border-top: 1px solid var(--color-border); }
+.class-challenge h3,
+.class-challenge p { margin: 0; }
+.class-challenge p { color: var(--color-text-soft); font-size: 0.88rem; }
 
 .challenge-list {
   display: grid;
@@ -2757,6 +2828,8 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 
+  .class-challenge { grid-template-columns: 1fr; }
+
   .challenge-item {
     flex-direction: column;
     gap: 4px;
@@ -2777,7 +2850,7 @@ tbody tr:hover {
   }
 
   .game-companion__avatar {
-    font-size: clamp(9rem, 22vw, 12rem);
+    font-size: clamp(6rem, 14vw, 8rem);
   }
 }
 
@@ -2787,6 +2860,7 @@ tbody tr:hover {
     grid-template-areas:
       "actions"
       "hud"
+      "settings"
       "progress"
       "question"
       "companion";
@@ -2799,9 +2873,17 @@ tbody tr:hover {
   }
 
   .game-companion__avatar {
-    width: min(100%, 240px);
-    font-size: clamp(10rem, 40vw, 14rem);
+    width: min(100%, 156px);
+    font-size: clamp(5rem, 18vw, 7rem);
   }
+
+  .options-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 400px) {
+  .options-grid { grid-template-columns: 1fr; }
 }
 
 .perfil-picker {

@@ -7,7 +7,7 @@ export const GAME_TYPES = {
       const b = randomInt(3, 15);
       const total = a + b;
       const context = CONTEXTS.adicao[contextIndex % CONTEXTS.adicao.length];
-      const story = `Durante uma atividade ${formatPlace(context.place)}, a turma separou ${a} ${context.item} pela manhã e mais ${b} à tarde. Quantos ${context.item} foram separados?`;
+      const story = `Durante uma atividade ${formatPlace(context.place)}, a turma separou ${a} ${context.item} pela manhã e mais ${b} à tarde. Qual é o total?`;
       const explanation = `Pensamos assim: ${a} + ${b} = ${total}. Quando juntamos os grupos, o total fica ${total}.`;
       return makeQuestion({
         prompt: story,
@@ -28,7 +28,7 @@ export const GAME_TYPES = {
       const b = randomInt(2, a - 1);
       const diff = a - b;
       const context = CONTEXTS.subtracao[contextIndex % CONTEXTS.subtracao.length];
-      const story = `Durante uma atividade ${formatPlace(context.place)}, havia ${a} ${context.item}. Depois que ${b} foram usados, quantos ${context.item} sobraram?`;
+      const story = `Durante uma atividade ${formatPlace(context.place)}, a turma tinha ${a} ${context.item}. Depois de usar ${b}, qual quantidade restou?`;
       const explanation = `A quantidade que sobrou é a diferença: ${a} - ${b} = ${diff}.`;
       return makeQuestion({
         prompt: story,
@@ -49,7 +49,7 @@ export const GAME_TYPES = {
       const b = randomInt(2, 9);
       const total = a * b;
       const context = CONTEXTS.multiplicacao[contextIndex % CONTEXTS.multiplicacao.length];
-      const story = `Durante uma atividade ${formatPlace(context.place)}, cada ${context.container} tem ${a} ${context.item}. Quantos ${context.item} há em ${b} ${context.container}s iguais?`;
+      const story = `Durante uma atividade ${formatPlace(context.place)}, cada ${context.container} tem ${a} ${context.item}. Qual é o total de itens em ${b} grupos iguais?`;
       const explanation = `Multiplicar significa repetir grupos iguais: ${a} × ${b} = ${total}.`;
       return makeQuestion({
         prompt: story,
@@ -70,7 +70,7 @@ export const GAME_TYPES = {
       const quotient = randomInt(2, 9);
       const dividend = divisor * quotient;
       const context = CONTEXTS.divisao[contextIndex % CONTEXTS.divisao.length];
-      const story = `Durante uma atividade ${formatPlace(context.place)}, a turma vai repartir ${dividend} ${context.item} igualmente em ${divisor} grupos. Quantos ${context.item} ficam em cada grupo?`;
+      const story = `Durante uma atividade ${formatPlace(context.place)}, a turma vai repartir ${dividend} ${context.item} igualmente em ${divisor} grupos. Qual quantidade fica em cada grupo?`;
       const explanation = `Repartir igualmente significa dividir: ${dividend} ÷ ${divisor} = ${quotient}.`;
       return makeQuestion({
         prompt: story,

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=23" />
+  <link rel="stylesheet" href="css/style.css?v=26" />
 </head>
 <body>
 
@@ -97,12 +97,13 @@
         <div>
           <span class="eyebrow">Seu perfil neste aparelho</span>
           <h2 id="accountToolsTitle">Cópia e privacidade</h2>
-          <p>Use a cópia para transferir seu perfil para outro aparelho.</p>
+          <p>Sair da conta mantém seu perfil e progresso neste aparelho. Exclua o perfil somente se quiser apagar esses dados.</p>
         </div>
         <div class="account-tools__actions">
           <button type="button" class="btn btn--ghost" id="exportProfileButton">Baixar cópia</button>
           <label class="btn btn--ghost account-import-button" for="importProfileInput">Restaurar cópia</label>
           <input id="importProfileInput" type="file" accept="application/json,.json" hidden />
+          <button type="button" class="btn btn--ghost" id="playerLogoutButton">Sair da conta</button>
           <button type="button" class="btn btn--danger" id="deleteProfileButton">Excluir meu perfil</button>
         </div>
         <p id="accountToolsFeedback" class="hint" role="status" aria-live="polite"></p>
@@ -112,8 +113,8 @@
 
   <footer class="footer">G&Ecirc;NIOS DO JOGO · CRUZEIRO DO SUL · ANÁLIA FRANCO I</footer>
 
-  <script src="js/app-state.js?v=12"></script>
-  <script src="js/nav.js?v=4"></script>
+  <script src="js/app-state.js?v=14"></script>
+  <script src="js/nav.js?v=6"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const player = window.GeniosApp?.getPlayer?.();
@@ -283,8 +284,14 @@
       const toolsFeedback = document.getElementById('accountToolsFeedback');
       const exportButton = document.getElementById('exportProfileButton');
       const importInput = document.getElementById('importProfileInput');
+      const logoutButton = document.getElementById('playerLogoutButton');
       const deleteButton = document.getElementById('deleteProfileButton');
       const showToolsFeedback = (message) => { toolsFeedback.textContent = message; };
+
+      logoutButton.addEventListener('click', () => {
+        window.GeniosApp.logoutUser();
+        window.location.replace('index.html');
+      });
 
       exportButton.addEventListener('click', () => {
         const result = window.GeniosApp.exportActiveProfile();

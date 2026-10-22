@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=23" />
+  <link rel="stylesheet" href="css/style.css?v=26" />
   <style>
     body { justify-content: flex-start; min-height: 100svh; }
     .login-main { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; padding: clamp(16px, 3vh, 32px) 16px 32px; }
@@ -37,6 +37,7 @@
             <button type="button" class="login-switch__button" data-account-type="outside" aria-pressed="false">De fora</button>
           </div>
           <p class="login-note" id="accountTypeDescription">Informe seu nome, turma e PIN.</p>
+          <p class="local-mode-note" id="localModeNotice" hidden>Modo local de teste: os perfis e desafios ficam apenas neste navegador; não há validação da escola nem sincronização.</p>
         </section>
 
         <section class="login-form-section" aria-label="Dados de acesso">
@@ -52,8 +53,8 @@
         </div>
 
         <div class="field">
-          <label for="senha">PIN secreto</label>
-          <input type="password" id="senha" name="senha" placeholder="4 números" inputmode="numeric" minlength="4" maxlength="32" autocomplete="current-password" required />
+          <label for="senha">PIN de acesso</label>
+          <input type="password" id="senha" name="senha" placeholder="Crie um PIN de 4 números" inputmode="numeric" minlength="4" maxlength="4" autocomplete="new-password" required />
         </div>
 
         <div class="field school-only" id="classField">
@@ -110,11 +111,12 @@
         </ul>
           </details>
 
-          <p class="hint login-device-note">Novo perfil: escolha um PIN de 4 números. Se já tem perfil, use a senha que cadastrou antes.</p>
+          <p class="hint login-device-note" id="pinHelp">Crie um PIN de 4 números. Use o mesmo PIN para entrar novamente.</p>
 
           <p class="hint" style="margin-top:18px;">
             É professor(a)? <a href="professor.html" style="color: var(--color-primary-dark); font-weight:700;">Área do professor</a>
           </p>
+          <p class="hint local-mode-link">Sem Supabase? <a href="index.html?modo=local">Testar perfil de turma neste aparelho</a>.</p>
         </section>
       </div>
     </div>
@@ -124,8 +126,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabaseClient.js?v=1"></script>
-  <script src="js/app-state.js?v=12"></script>
-  <script src="js/nav.js?v=4"></script>
+  <script src="js/app-state.js?v=14"></script>
+  <script src="js/nav.js?v=6"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const form = document.getElementById('playerLoginForm');
@@ -137,6 +139,7 @@
       const loginSubmit = document.getElementById('loginSubmit');
       const nomeInput = document.getElementById('nome');
       const senhaInput = document.getElementById('senha');
+      const pinHelp = document.getElementById('pinHelp');
       const turmaInput = document.getElementById('turma');
       const schoolCodeInput = document.getElementById('schoolCode');
       const nameField = document.getElementById('nameField');
@@ -145,6 +148,9 @@
       const avatarField = document.getElementById('avatarField');
       let accountType = 'school';
       let authMode = 'register';
+      const localDemo = new URLSearchParams(window.location.search).get('modo') === 'local';
+      const localModeNotice = document.getElementById('localModeNotice');
+      localModeNotice.hidden = !localDemo;
 
       const showFeedback = (message) => {
         loginFeedback.textContent = message;
@@ -154,7 +160,7 @@
       const updateFormMode = () => {
         const isRegistering = authMode === 'register';
         const needsClass = accountType === 'school';
-        const needsSchoolCode = isRegistering && accountType === 'school';
+        const needsSchoolCode = isRegistering && accountType === 'school' && !localDemo;
         nameField.hidden = false;
         avatarField.hidden = !isRegistering;
         classField.hidden = !needsClass;
@@ -163,12 +169,19 @@
         turmaInput.required = needsClass;
         schoolCodeInput.required = needsSchoolCode;
         senhaInput.autocomplete = isRegistering ? 'new-password' : 'current-password';
+        senhaInput.maxLength = isRegistering ? 4 : 32;
+        senhaInput.placeholder = isRegistering ? 'Crie um PIN de 4 números' : 'Digite seu PIN';
+        pinHelp.textContent = isRegistering
+          ? 'Crie um PIN de 4 números. Use o mesmo PIN para entrar novamente.'
+          : 'Digite o PIN escolhido quando este perfil foi criado.';
         if (isRegistering) {
           senhaInput.setAttribute('pattern', '[0-9]{4}');
         } else {
           senhaInput.removeAttribute('pattern');
         }
-        accountTypeDescription.textContent = accountType === 'school'
+        accountTypeDescription.textContent = localDemo && isRegistering && accountType === 'school'
+          ? 'Modo local: escolha a turma e crie um perfil para testar o jogo neste aparelho.'
+          : accountType === 'school'
           ? isRegistering
             ? 'Peça ao professor o código da sua turma para criar um perfil escolar.'
             : 'Entre com seu nome, sua turma e seu PIN.'
@@ -230,10 +243,9 @@
         }
 
         if (isRegistering && accountType === 'school') {
-          const authorization = await window.GeniosApp.authorizeSchoolEnrollment({
-            code: schoolCodeInput.value,
-            turma,
-          });
+          const authorization = localDemo
+            ? window.GeniosApp.authorizeLocalSchoolEnrollment({ turma })
+            : await window.GeniosApp.authorizeSchoolEnrollment({ code: schoolCodeInput.value, turma });
           if (!authorization.ok) {
             showFeedback(authorization.message);
             return;
@@ -241,7 +253,7 @@
         }
 
         if (!isRegistering && senha.length < 4) {
-          showFeedback('Digite seu PIN para entrar.');
+          showFeedback('Digite o PIN escolhido para este perfil.');
           return;
         }
 
@@ -258,7 +270,7 @@
         if (!result.ok) {
           const message = result.code === 'PROFILE_NOT_FOUND'
             ? accountType === 'school'
-              ? 'Esse perfil ainda não existe neste dispositivo. Para o primeiro acesso, toque em Criar perfil e use o código da escola.'
+              ? 'Esse perfil ainda não existe neste dispositivo. Para o primeiro acesso, toque em Criar perfil e use o código da turma fornecido pelo professor.'
               : 'Esse perfil ainda não existe neste dispositivo. Toque em Criar perfil para começar.'
             : result.message || 'Não foi possível entrar no jogo.';
           showFeedback(message);

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=23" />
+  <link rel="stylesheet" href="css/style.css?v=26" />
 </head>
 <body>
   <a class="skip-link" href="#questionPrompt">Ir direto para a questão</a>
@@ -30,7 +30,7 @@
   <main class="main">
     <div class="container game-shell">
       <div class="game-shell__actions" style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
-        <a href="matematica.html" class="hint">← Sair do jogo</a>
+        <a href="matematica.html" class="btn btn--primary game-back-button" aria-label="Voltar à escolha de minijogos">← Voltar aos jogos</a>
         <button type="button" class="btn btn--ghost" id="tutorialButton" style="padding:8px 14px; font-size:0.78rem;">📘 Tutorial</button>
       </div>
 
@@ -104,14 +104,16 @@
           </div>
           <p id="questionReportFeedback" role="status" aria-live="polite"></p>
         </form>
-        <div class="question-visual" id="questionVisual" aria-label="Exemplo visual da pergunta"></div>
-        <aside class="question-example" id="questionExample" aria-label="Exemplo prático" hidden></aside>
-        <div class="question-card__prompt" id="questionPrompt" role="status" aria-live="polite" tabindex="-1">Carregando...</div>
+        <div class="question-content">
+          <div class="question-visual" id="questionVisual" aria-label="Exemplo visual da pergunta"></div>
+          <aside class="question-example" id="questionExample" aria-label="Exemplo prático" hidden></aside>
+          <div class="question-card__prompt" id="questionPrompt" role="status" aria-live="polite" tabindex="-1">Carregando...</div>
 
-        <div class="options-grid" id="optionsGrid" role="group" aria-label="Opções de resposta"></div>
-        <p id="answerFeedback" class="answer-feedback" role="status" aria-live="polite"></p>
+          <div class="options-grid" id="optionsGrid" role="group" aria-label="Opções de resposta"></div>
+          <p id="answerFeedback" class="answer-feedback" role="status" aria-live="polite"></p>
 
-        <div class="progress-dots" id="progressDots"></div>
+          <div class="progress-dots" id="progressDots"></div>
+        </div>
       </div>
       <aside class="game-companion" aria-label="Mascote do jogo">
         <span class="game-companion__bubble" id="companionBubble" aria-live="polite">VOCÊ CONSEGUE! LEIA A HISTÓRIA E PENSE COM CALMA.</span>
@@ -132,9 +134,9 @@
 
   <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
 
-  <script src="js/app-state.js?v=12"></script>
-  <script type="module" src="js/game-runner.js?v=10"></script>
-  <script src="js/nav.js?v=4"></script>
+  <script src="js/app-state.js?v=14"></script>
+  <script type="module" src="js/game-runner.js?v=12"></script>
+  <script src="js/nav.js?v=6"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const player = window.GeniosApp?.getPlayer?.();

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=23" />
+  <link rel="stylesheet" href="css/style.css?v=26" />
 </head>
 <body>
 
@@ -34,6 +34,14 @@
         <h1>Escolha um minijogo</h1>
         <p>Cada jogo vale pontos para o seu ranking. Bons estudos!</p>
       </div>
+
+      <section class="class-challenges" id="classChallengesSection" aria-labelledby="classChallengesTitle" hidden>
+        <div>
+          <span class="eyebrow">Missões da turma</span>
+          <h2 id="classChallengesTitle">Desafios do professor</h2>
+        </div>
+        <div class="class-challenges__list" id="classChallengesList" aria-live="polite"></div>
+      </section>
 
       <div class="grid grid--narrow">
         <a href="jogo.html?game=adicao" class="tile">
@@ -78,14 +86,53 @@
 
   <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
 
-  <script src="js/app-state.js?v=12"></script>
-  <script src="js/nav.js?v=4"></script>
+  <script src="js/app-state.js?v=14"></script>
+  <script src="js/nav.js?v=6"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const player = window.GeniosApp?.getPlayer?.();
       const userChip = document.querySelector('.user-chip');
       if (userChip && player) {
         userChip.innerHTML = `<span class="user-chip__avatar">${player.avatar || '🦊'}</span> ${player.nome}`;
+      }
+
+      const challengeSection = document.getElementById('classChallengesSection');
+      const challengeList = document.getElementById('classChallengesList');
+      if (player?.accountType === 'school' && player.turma && challengeSection && challengeList) {
+        challengeSection.hidden = false;
+        const gameLabels = {
+          adicao: 'Adição', subtracao: 'Subtração', multiplicacao: 'Multiplicação',
+          divisao: 'Divisão', formas: 'Formas geométricas',
+        };
+        const challenges = window.GeniosApp.getChallenges(player.turma);
+        if (challenges.length === 0) {
+          const empty = document.createElement('p');
+          empty.className = 'hint';
+          empty.textContent = 'Ainda não há missões para esta turma.';
+          challengeList.appendChild(empty);
+        }
+        challenges.forEach((challenge) => {
+          const card = document.createElement('article');
+          card.className = 'class-challenge';
+          const copy = document.createElement('div');
+          const title = document.createElement('h3');
+          title.textContent = challenge.title;
+          const detail = document.createElement('p');
+          detail.textContent = `${challenge.target} acertos por etapa · ${gameLabels[challenge.game] || 'Minijogo'}`;
+          copy.append(title, detail);
+          const start = document.createElement('a');
+          const params = new URLSearchParams({
+            game: challenge.game,
+            challenge: challenge.id,
+            title: challenge.title,
+            goal: String(challenge.target),
+          });
+          start.href = `jogo.html?${params.toString()}`;
+          start.className = 'btn btn--primary';
+          start.textContent = 'Começar missão';
+          card.append(copy, start);
+          challengeList.appendChild(card);
+        });
       }
     });
   </script>
