@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=26" />
+  <link rel="stylesheet" href="css/style.css?v=28" />
   <style>
     body { justify-content: flex-start; min-height: 100svh; }
     .login-main { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; padding: clamp(16px, 3vh, 32px) 16px 32px; }
@@ -122,11 +122,20 @@
     </div>
   </main>
 
-  <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
+  <footer class="footer site-footer">
+    <span>G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</span>
+    <details class="footer-credits">
+      <summary>Créditos</summary>
+      <div class="footer-credits__content">
+        <p><strong>Equipe:</strong> Pedro Lucas, Vitor, Murillo, Marcelo, Guilherme e Mickael</p>
+        <p><strong>Faculdade:</strong> Cruzeiro do Sul</p>
+      </div>
+    </details>
+  </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabaseClient.js?v=1"></script>
-  <script src="js/app-state.js?v=14"></script>
+  <script src="js/supabaseClient.js?v=2"></script>
+  <script src="js/app-state.js?v=19"></script>
   <script src="js/nav.js?v=6"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -277,7 +286,8 @@
           return;
         }
 
-        window.GeniosApp.setPlayer({ ...result.profile, lastPlayed: new Date().toISOString() });
+        window.GeniosApp.setPlayer({ ...result.profile, localOnly: localDemo, lastPlayed: new Date().toISOString() });
+        if (!localDemo) await window.GeniosApp.hydrateProfileState?.();
         window.location.href = 'materias.html';
       });
 

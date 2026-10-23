@@ -1,134 +1,152 @@
-// Carrega, na tabela "Desempenho por aluno", as pontuações reais do Supabase
-// filtradas pelo professor logado, cruzando com o log de respostas para
-// mostrar acertos/erros e permitir abrir o detalhamento fase a fase de cada
-// aluno (visão individual do professor).
-(function () {
-  const STORAGE_PROFESSOR = 'genios-professor-nome';
-
-  const FASE_LABELS = {
+(() => {
+  const GAME_LABELS = {
     adicao: 'Adição',
     subtracao: 'Subtração',
     multiplicacao: 'Multiplicação',
     divisao: 'Divisão',
-    formas: 'Formas Geométricas',
-    fracoes: 'Frações',
-    sequencias: 'Números e Sequências',
-    problemas: 'Situações-Problema',
+    formas: 'Formas geométricas',
   };
 
-  async function carregarDesempenho() {
-    const tbody = document.getElementById('alunosDesempenho');
-    const professor = localStorage.getItem(STORAGE_PROFESSOR);
+  async function loadTeacherReports(event) {
+    const panel = document.getElementById('teacherReportPanel');
+    const feedback = document.getElementById('teacherReportFeedback');
+    const rows = document.getElementById('teacherReportRows');
+    const reportsList = document.getElementById('teacherQuestionReports');
+    if (!panel || !window.supabaseClient) return;
+    panel.hidden = false;
 
-    if (!tbody || !window.supabaseClient || !professor) {
-      return;
-    }
-
-    const { data: pontuacoes, error } = await window.supabaseClient
-      .from('pontuacoes')
-      .select('nome_aluno, turma, pontos')
-      .eq('professor', professor)
-      .order('pontos', { ascending: false });
-
-    if (error) {
-      console.error('Erro ao carregar desempenho dos alunos:', error.message);
-      tbody.innerHTML = '<tr><td colspan="6" class="hint text-center">Não foi possível carregar os dados.</td></tr>';
-      return;
-    }
-
-    if (!pontuacoes || pontuacoes.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="hint text-center">Nenhum aluno pontuou ainda.</td></tr>';
-      return;
-    }
-
-    const turmas = Array.from(new Set(pontuacoes.map((p) => p.turma)));
-    let respostas = [];
-
-    if (turmas.length > 0) {
-      const { data, error: erroRespostas } = await window.supabaseClient
-        .from('respostas')
-        .select('nome_aluno, turma, fase_key, correta')
-        .in('turma', turmas);
-
-      if (erroRespostas) {
-        console.error('Erro ao carregar respostas dos alunos:', erroRespostas.message);
-      } else if (data) {
-        respostas = data;
+    try {
+      let teacherId = event?.detail?.userId;
+      if (!teacherId) {
+        const { data } = await window.supabaseClient.auth.getUser();
+        teacherId = data?.user?.id;
       }
+      if (!teacherId) {
+        feedback.textContent = 'Entre com a conta docente para carregar os relatórios.';
+        return;
+      }
+
+      const { data: classes, error: classError } = await window.supabaseClient
+        .from('teacher_classes')
+        .select('turma')
+        .eq('teacher_id', teacherId);
+      if (classError || !classes?.length) {
+        feedback.textContent = 'Nenhuma turma está vinculada a esta conta docente.';
+        return;
+      }
+
+      const classNames = [...new Set(classes.map((item) => item.turma))];
+      const { data: students, error: studentsError } = await window.supabaseClient
+        .from('profiles')
+        .select('id, nome, turma')
+        .in('turma', classNames)
+        .eq('account_type', 'school');
+      if (studentsError || !students) throw new Error('Não foi possível carregar os alunos das turmas.');
+
+      const studentIds = students.map((student) => student.id);
+      let sessions = [];
+      let profileStates = [];
+      if (studentIds.length > 0) {
+        const { data, error } = await window.supabaseClient
+          .from('game_sessions')
+          .select('profile_id, game_key, score, correct_answers, wrong_answers, elapsed_seconds, created_at')
+          .in('profile_id', studentIds)
+          .order('created_at', { ascending: false })
+          .limit(1000);
+        if (error) throw new Error('Não foi possível carregar as partidas das turmas.');
+        sessions = data || [];
+
+        const { data: stateData, error: stateError } = await window.supabaseClient
+          .from('profile_state')
+          .select('profile_id, payload')
+          .in('profile_id', studentIds);
+        if (stateError) throw new Error('Não foi possível carregar os relatos de questões.');
+        profileStates = stateData || [];
+      }
+
+      const aggregates = new Map(students.map((student) => [student.id, {
+        ...student, games: new Set(), points: 0, correct: 0, wrong: 0, seconds: 0, sessions: 0,
+      }]));
+      sessions.forEach((session) => {
+        const student = aggregates.get(session.profile_id);
+        if (!student) return;
+        student.games.add(session.game_key);
+        student.points = Math.max(student.points, Number(session.score) || 0);
+        student.correct += Number(session.correct_answers) || 0;
+        student.wrong += Number(session.wrong_answers) || 0;
+        student.seconds += Number(session.elapsed_seconds) || 0;
+        student.sessions += 1;
+      });
+
+      const dataRows = [...aggregates.values()].sort((left, right) => right.points - left.points || left.nome.localeCompare(right.nome, 'pt-BR'));
+      const totals = sessions.reduce((sum, session) => ({
+        correct: sum.correct + (Number(session.correct_answers) || 0),
+        wrong: sum.wrong + (Number(session.wrong_answers) || 0),
+      }), { correct: 0, wrong: 0 });
+      const answers = totals.correct + totals.wrong;
+      document.getElementById('reportStudentCount').textContent = String(students.length);
+      document.getElementById('reportSessionCount').textContent = String(sessions.length);
+      document.getElementById('reportAccuracy').textContent = `${answers ? Math.round((totals.correct / answers) * 100) : 0}%`;
+      rows.replaceChildren();
+
+      if (dataRows.length === 0) {
+        feedback.textContent = 'Nenhum aluno está cadastrado nas turmas vinculadas.';
+        return;
+      }
+
+      dataRows.forEach((student) => {
+        const row = document.createElement('tr');
+        const values = [
+          student.nome,
+          student.turma,
+          [...student.games].map((game) => GAME_LABELS[game] || game).join(', ') || 'Sem partidas',
+          String(student.points),
+          String(student.correct),
+          String(student.wrong),
+          `${Math.round(student.seconds / 60)} min`,
+        ];
+        values.forEach((value) => {
+          const cell = document.createElement('td');
+          cell.textContent = value;
+          row.appendChild(cell);
+        });
+        rows.appendChild(row);
+      });
+
+      reportsList.replaceChildren();
+      const reports = profileStates.flatMap((profileState) => {
+        const student = students.find((item) => item.id === profileState.profile_id);
+        return (profileState.payload?.state?.['genios-question-reports'] || []).map((report) => ({
+          studentName: student?.nome || 'Aluno',
+          report,
+        }));
+      }).slice(0, 100);
+      if (reports.length === 0) {
+        const emptyReport = document.createElement('li');
+        emptyReport.className = 'hint';
+        emptyReport.textContent = 'Nenhum relato recebido das turmas.';
+        reportsList.appendChild(emptyReport);
+      } else {
+        reports.forEach(({ studentName, report }) => {
+          const item = document.createElement('li');
+          const title = document.createElement('strong');
+          title.textContent = `${studentName} · ${GAME_LABELS[report.gameKey] || 'Minijogo'}`;
+          const question = document.createElement('span');
+          question.textContent = report.prompt;
+          const reason = document.createElement('span');
+          reason.textContent = report.reason;
+          item.append(title, question, reason);
+          reportsList.appendChild(item);
+        });
+      }
+      feedback.textContent = 'Dados atualizados a partir das partidas concluídas.';
+    } catch (error) {
+      feedback.textContent = error.message || 'Não foi possível carregar os relatórios.';
     }
-
-    tbody.innerHTML = '';
-
-    pontuacoes.forEach((aluno) => {
-      const respostasAluno = respostas.filter(
-        (r) => r.nome_aluno === aluno.nome_aluno && r.turma === aluno.turma
-      );
-      const acertos = respostasAluno.filter((r) => r.correta).length;
-      const erros = respostasAluno.length - acertos;
-      const pct = respostasAluno.length ? Math.round((acertos / respostasAluno.length) * 100) : 0;
-
-      const linha = document.createElement('tr');
-      linha.className = 'aluno-detalhe-row';
-      linha.innerHTML = `
-        <td class="player-cell">${escapeHtml(aluno.nome_aluno)}</td>
-        <td>${escapeHtml(aluno.turma)}</td>
-        <td><span class="tag tag--correct">${aluno.pontos}</span></td>
-        <td><span class="tag tag--correct">${acertos}</span></td>
-        <td><span class="tag tag--wrong">${erros}</span></td>
-        <td>${respostasAluno.length ? `${pct}%` : '—'}</td>
-      `;
-
-      const detalhe = document.createElement('tr');
-      detalhe.className = 'aluno-detalhe';
-      detalhe.innerHTML = `<td colspan="6">${montarDetalhePorFase(respostasAluno)}</td>`;
-
-      linha.addEventListener('click', () => detalhe.classList.toggle('is-aberto'));
-
-      tbody.appendChild(linha);
-      tbody.appendChild(detalhe);
-    });
   }
 
-  function montarDetalhePorFase(respostasAluno) {
-    if (respostasAluno.length === 0) {
-      return '<p class="hint" style="margin:10px 4px;">Esse aluno ainda não respondeu nenhuma pergunta.</p>';
-    }
-
-    const porFase = {};
-    respostasAluno.forEach((r) => {
-      if (!porFase[r.fase_key]) porFase[r.fase_key] = { acertos: 0, erros: 0 };
-      if (r.correta) porFase[r.fase_key].acertos += 1;
-      else porFase[r.fase_key].erros += 1;
-    });
-
-    const linhas = Object.entries(porFase)
-      .map(([faseKey, dados]) => `
-        <div class="legend" style="justify-content: space-between; padding: 8px 4px; border-bottom: 1px solid var(--color-border);">
-          <strong>${FASE_LABELS[faseKey] || faseKey}</strong>
-          <span>
-            <span class="tag tag--correct">${dados.acertos} acertos</span>
-            <span class="tag tag--wrong">${dados.erros} erros</span>
-          </span>
-        </div>
-      `)
-      .join('');
-
-    return `<div style="padding: 6px 10px;">${linhas}</div>`;
-  }
-
-  function escapeHtml(value) {
-    const div = document.createElement('div');
-    div.textContent = value;
-    return div.innerHTML;
-  }
-
-  // Dispara assim que o login é feito com sucesso...
-  document.addEventListener('professor:login', carregarDesempenho);
-
-  // ...e também se a página carregar com uma sessão já salva.
+  document.addEventListener('professor:login', loadTeacherReports);
   document.addEventListener('DOMContentLoaded', () => {
-    if (localStorage.getItem('genios-professor-auth') === 'true') {
-      carregarDesempenho();
-    }
+    if (localStorage.getItem('genios-professor-auth') === 'true') loadTeacherReports();
   });
 })();

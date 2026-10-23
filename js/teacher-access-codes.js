@@ -1,6 +1,7 @@
 (() => {
   const form = document.getElementById('schoolCodeForm');
   const classInput = document.getElementById('schoolCodeClass');
+  const challengeClassInput = document.getElementById('challengeClass');
   const usesInput = document.getElementById('schoolCodeUses');
   const expiryInput = document.getElementById('schoolCodeExpiry');
   const feedback = document.getElementById('schoolCodeFeedback');
@@ -60,9 +61,12 @@
       .select('turma')
       .eq('teacher_id', teacherId)
       .order('turma');
-    classInput.replaceChildren(new Option('Selecione uma turma autorizada', ''));
+    const classPlaceholder = new Option('Selecione uma turma autorizada', '');
+    classInput.replaceChildren(classPlaceholder);
+    challengeClassInput?.replaceChildren(new Option('Selecione uma turma autorizada', ''));
     if (classError || !classes?.length) {
       classInput.disabled = true;
+      if (challengeClassInput) challengeClassInput.disabled = true;
       const message = document.createElement('p');
       message.className = 'hint';
       message.textContent = 'Sua conta ainda não está associada a uma turma. Peça ao administrador para configurar teacher_classes no Supabase.';
@@ -70,8 +74,12 @@
       return;
     }
 
-    classes.forEach(({ turma }) => classInput.add(new Option(turma, turma)));
+    classes.forEach(({ turma }) => {
+      classInput.add(new Option(turma, turma));
+      challengeClassInput?.add(new Option(turma, turma));
+    });
     classInput.disabled = false;
+    if (challengeClassInput) challengeClassInput.disabled = false;
 
     const { data, error } = await window.supabaseClient
       .from('school_access_codes')

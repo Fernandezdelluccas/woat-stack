@@ -924,6 +924,7 @@ function finishGame() {
   state.timerId = null;
   state.advanceTimerId = null;
   window.GeniosApp?.clearGameDraft?.();
+  let completedSession = null;
 
   if (window.GeniosApp) {
     const history = window.GeniosApp.saveGameSession?.({
@@ -934,7 +935,10 @@ function finishGame() {
       seconds: state.seconds,
       bestStreak: state.bestStreak,
       answers: state.answers,
+      challengeId: state.challengeId,
+      challengeTitle: state.challengeTitle,
     }) || [];
+    completedSession = history.at(-1) || null;
     const playedGames = new Set(history.map((session) => session.gameKey));
     const achievements = [
       ['first-game', history.length >= 1],
@@ -975,7 +979,26 @@ function finishGame() {
   const metrics = document.createElement('p');
   metrics.className = 'game-result-summary__metrics';
   metrics.textContent = `Acertos: ${state.totalCorrect} · Erros: ${state.totalWrong} · Melhor sequência: ${state.bestStreak} · Tempo: ${state.untimed ? 'Sem limite' : formatElapsed(state.seconds)}`;
-  summary.append(heading, metrics);
+  const syncFeedback = document.createElement('p');
+  syncFeedback.className = 'game-result-summary__sync';
+  syncFeedback.setAttribute('role', 'status');
+  syncFeedback.setAttribute('aria-live', 'polite');
+  syncFeedback.textContent = 'Salvando o progresso...';
+  summary.append(heading, metrics, syncFeedback);
+
+  if (completedSession && window.GeniosApp?.syncPendingGameSessions) {
+    window.GeniosApp.syncPendingGameSessions().then(async (result) => {
+      const stateResult = await window.GeniosApp.syncProfileState?.();
+      const fullySynced = result.ok && (!stateResult || stateResult.ok);
+      syncFeedback.textContent = fullySynced
+        ? 'Progresso sincronizado com o Supabase.'
+        : `Progresso salvo neste aparelho. ${result.message || stateResult?.message || 'A sincronização não está disponível agora.'}`;
+    }).catch(() => {
+      syncFeedback.textContent = 'Progresso salvo neste aparelho. A sincronização não está disponível agora.';
+    });
+  } else {
+    syncFeedback.textContent = 'Progresso salvo neste aparelho.';
+  }
 
   const missedAnswers = state.answers.filter((answer) => !answer.correct);
   if (missedAnswers.length > 0) {

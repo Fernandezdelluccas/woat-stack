@@ -1267,7 +1267,35 @@ tbody tr:hover {
 
 .main > .container.game-shell { max-width: 1440px; }
 
-.game-shell__actions { grid-area: actions; }
+.game-shell__actions {
+  grid-area: actions;
+  position: sticky;
+  top: calc(var(--header-height) + 8px);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-solid);
+}
+
+.game-back-button {
+  min-height: 54px;
+  padding: 12px 22px;
+  border: 2px solid var(--color-secondary);
+  font-size: 1.08rem;
+  box-shadow: var(--shadow-md);
+}
+
+.game-back-button:focus-visible,
+.game-pause-exit:focus-visible {
+  outline: 3px solid var(--color-secondary);
+  outline-offset: 3px;
+}
 
 .game-hud {
   grid-area: hud;
@@ -1510,6 +1538,7 @@ tbody tr:hover {
 
 .game-pause-panel h2 { margin: 0; font-size: 1.6rem; }
 .game-pause-panel p { margin: 0 0 6px; }
+.game-pause-exit { min-height: 48px; }
 
 .high-contrast {
   --color-text: #fff;
@@ -1734,6 +1763,25 @@ tbody tr:hover {
   padding: 24px 20px 88px;
   font-size: 0.8rem;
   color: var(--color-text-soft);
+}
+
+.site-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+
+.footer-credits { position: relative; color: var(--color-text-soft); }
+.footer-credits summary { cursor: pointer; color: var(--color-text); font-weight: 800; }
+.footer-credits summary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 4px; }
+.footer-credits__content { display: grid; gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--color-border); }
+.footer-credits__content p { margin: 0; overflow-wrap: anywhere; }
+
+@media (max-width: 600px) {
+  .site-footer { flex-direction: column; }
+  .footer-credits__content { max-width: min(100%, 340px); }
 }
 
 .tutorial-modal {
@@ -2541,6 +2589,11 @@ tbody tr:hover {
 .teacher-report-empty h2 { margin: 0 0 10px; font-family: var(--font-heading); }
 .teacher-start-guide ol { display: grid; gap: 8px; margin: 0; padding-left: 1.4rem; color: var(--color-text-soft); }
 .teacher-report-empty p { margin: 0; color: var(--color-text-soft); }
+.teacher-question-reports { margin-top: 24px; }
+.teacher-question-reports h3 { margin: 0 0 10px; }
+.teacher-question-reports ul { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.teacher-question-reports li { display: grid; gap: 4px; padding: 10px 0; border-top: 1px solid var(--color-border); }
+.teacher-question-reports li span { color: var(--color-text-soft); font-size: 0.88rem; }
 .local-mode-note { margin: 16px 0; padding: 12px 14px; border-left: 4px solid var(--color-secondary); background: var(--color-hover); color: var(--color-text); line-height: 1.5; }
 .local-mode-link { margin-top: 12px; font-size: 0.84rem; }
 .local-mode-link a,
@@ -2855,6 +2908,18 @@ tbody tr:hover {
 }
 
 @media (max-width: 680px) {
+  .game-shell__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    top: 8px;
+  }
+
+  .game-back-button,
+  .game-shell__actions #tutorialButton {
+    width: 100%;
+    min-height: 54px;
+  }
+
   .game-shell {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:

@@ -4,7 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { buildQuestions, GAME_TYPES } from '../js/game.mjs';
 
-function createApp(initialData = {}, validSchoolCode = 'CODIGO-DE-TESTE', sharedStorage = null, withSupabase = true) {
+function createApp(initialData = {}, validSchoolCode = 'CODIGO-DE-TESTE', sharedStorage = null, withSupabase = true, supabaseClientOverride = null) {
   const storage = sharedStorage || new Map(Object.entries(initialData));
   const localStorage = {
     getItem: (key) => storage.get(key) ?? null,
@@ -12,7 +12,11 @@ function createApp(initialData = {}, validSchoolCode = 'CODIGO-DE-TESTE', shared
     removeItem: (key) => storage.delete(key),
   };
   const window = withSupabase ? {
-    supabaseClient: {
+    supabaseClient: supabaseClientOverride || {
+      auth: {
+        getSession: async () => ({ data: { session: null }, error: null }),
+        signInAnonymously: async () => ({ data: { user: { id: 'anonymous-test', is_anonymous: true } }, error: null }),
+      },
       rpc: async (functionName, args) => ({
         data: functionName === 'validate_school_access_code' && args.p_code === validSchoolCode,
         error: null,
@@ -116,6 +120,62 @@ test('painel publica missão para turma e catálogo do aluno inicia jogo com met
   assert.ok(game.includes('challengeId'));
 });
 
+test('missão remota é publicada pelo professor e listada ao aluno autenticado da turma', async () => {
+  let remoteChallenge;
+  const teacherClient = {
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'teacher-1', is_anonymous: false } } }, error: null }) },
+    from(table) {
+      assert.equal(table, 'class_challenges');
+      return {
+        insert(row) {
+          remoteChallenge = { ...row, id: 'remote-challenge-1', created_at: new Date().toISOString() };
+          return { select() { return this; }, single: async () => ({ data: { id: remoteChallenge.id }, error: null }) };
+        },
+      };
+    },
+  };
+  const teacherApp = createApp({}, 'CODIGO-DE-TESTE', new Map(), true, teacherClient);
+  const created = teacherApp.createChallenge({ title: 'Tabuada', game: 'multiplicacao', target: 3, turma: '4º ano' });
+  const published = await teacherApp.publishClassChallenge(created.challenge);
+  assert.equal(published.ok, true);
+  assert.equal(remoteChallenge.teacher_user_id, 'teacher-1');
+  assert.equal(remoteChallenge.target, 3);
+
+  const studentClient = {
+    auth: {
+      getSession: async () => ({ data: { session: null }, error: null }),
+      signInAnonymously: async () => ({ data: { user: { id: 'student-1', is_anonymous: true } }, error: null }),
+    },
+    rpc: async (name, args) => {
+      assert.equal(name, 'create_student_profile');
+      assert.equal(args.p_turma, '4º ano');
+      return { data: 'student-profile-1', error: null };
+    },
+    from(table) {
+      if (table === 'profiles') {
+        return {
+          select() { return this; },
+          eq() { return this; },
+          maybeSingle: async () => ({ data: null, error: null }),
+        };
+      }
+      assert.equal(table, 'class_challenges');
+      return {
+        select() { return this; },
+        eq() { return this; },
+        order: async () => ({ data: [remoteChallenge], error: null }),
+      };
+    },
+  };
+  const studentApp = createApp({}, 'CODIGO-DE-TESTE', new Map(), true, studentClient);
+  await studentApp.authorizeLocalSchoolEnrollment({ turma: '4º ano' });
+  studentApp.registerUser({ nome: 'Bia', password: '1234', turma: '4º ano', accountType: 'school' });
+  const listed = await studentApp.getRemoteClassChallenges('4º ano');
+  assert.equal(listed.ok, true);
+  assert.equal(listed.challenges[0].title, 'Tabuada');
+  assert.equal(listed.challenges[0].target, 3);
+});
+
 test('aluno tem saída de conta e botão visível para voltar dos jogos', () => {
   const materials = fs.readFileSync(new URL('../materias.html', import.meta.url), 'utf8');
   const game = fs.readFileSync(new URL('../jogo.html', import.meta.url), 'utf8');
@@ -124,6 +184,8 @@ test('aluno tem saída de conta e botão visível para voltar dos jogos', () => 
   assert.ok(materials.includes('Excluir meu perfil'));
   assert.ok(game.includes('class="btn btn--primary game-back-button"'));
   assert.ok(game.includes('← Voltar aos jogos'));
+  assert.ok(game.includes('id="exitPausedGameButton"'));
+  assert.ok(game.includes('href="matematica.html" class="btn btn--ghost game-pause-exit"'));
 });
 
 test('cadastro de criança exige código da escola e PIN de quatro dígitos', async () => {
@@ -171,7 +233,7 @@ test('perfil pode ser exportado, restaurado e excluído sem remover dados de out
   assert.equal(restoredApp.importProfileBackup(backup.backup).ok, true);
   assert.equal(restoredApp.loginUser({ nome: 'Lia', turma: '4º ano', password: '7531', accountType: 'school' }).ok, true);
   assert.equal(restoredApp.getGameHistory().length, 1);
-  assert.equal(restoredApp.deleteActiveProfile().ok, true);
+  assert.equal((await restoredApp.deleteActiveProfile()).ok, true);
   assert.equal(restoredApp.getPlayer(), null);
   assert.equal(secondStorage.has('genios-game-draft:lia%40aluno.local'), false);
   assert.equal(secondStorage.has('genios-game-preferences:lia%40aluno.local'), false);
@@ -198,7 +260,7 @@ test('login explica perfil inexistente separadamente de PIN incorreto', async ()
 
 test('entrada usa versão nova do módulo de login para descartar cache antigo', () => {
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.ok(html.includes('js/app-state.js?v=14'));
+  assert.ok(html.includes('js/app-state.js?v=19'));
 });
 
 test('cadastro escolar falha fechado sem Supabase e não aceita código legado', async () => {
@@ -215,6 +277,92 @@ test('modo local permite testar perfis escolares sem RPC e sem código compartil
   assert.equal(authorization.local, true);
   assert.equal(app.registerUser({ nome: 'Aluno local', password: '4826', turma: '4º ano', accountType: 'school' }).ok, true);
   assert.equal(app.authorizeLocalSchoolEnrollment({ turma: '' }).ok, false);
+});
+
+test('perfis do modo local nunca são enviados ao Supabase', async () => {
+  const app = createApp();
+  const profile = app.registerUser({ nome: 'Demo local', password: '4826', accountType: 'outside' });
+  app.setPlayer({ ...profile.profile, localOnly: true });
+  const result = await app.syncActiveProfile();
+  assert.equal(result.ok, false);
+  assert.equal(result.localOnly, true);
+});
+
+test('sessões pendentes são sincronizadas com o perfil remoto e ficam idempotentes', async () => {
+  const profiles = [];
+  const sessions = [];
+  let profileState;
+  const supabaseClient = {
+    auth: {
+      getSession: async () => ({ data: { session: null }, error: null }),
+      signInAnonymously: async () => ({ data: { user: { id: 'anonymous-1', is_anonymous: true } }, error: null }),
+    },
+    rpc: async (name, args) => {
+      assert.equal(name, 'create_student_profile');
+      const profile = { auth_user_id: 'anonymous-1', nome: args.p_nome, turma: args.p_turma, id: 'profile-1' };
+      profiles.push(profile);
+      return { data: profile.id, error: null };
+    },
+    from(table) {
+      if (table === 'profiles') {
+        const filters = {};
+        return {
+          select() { return this; },
+          eq(key, value) { filters[key] = value; return this; },
+          maybeSingle: async () => ({ data: profiles.find((profile) => Object.entries(filters).every(([key, value]) => profile[key] === value)) || null, error: null }),
+        };
+      }
+      if (table === 'profile_state') {
+        return { upsert: async (row) => { profileState = row; return { error: null }; } };
+      }
+      assert.equal(table, 'game_sessions');
+      return { insert: async (session) => { sessions.push(session); return { error: null }; } };
+    },
+  };
+  const app = createApp({}, 'CODIGO-DE-TESTE', null, true, supabaseClient);
+  const player = app.registerUser({ nome: 'Nina', password: '4826', accountType: 'outside' });
+  const history = app.saveGameSession({
+    gameKey: 'adicao', points: 36, acertos: 3, erros: 1, seconds: 75, bestStreak: 2,
+    answers: [{ prompt: '2 + 2?', answer: '4', correctAnswer: '4', correct: true }],
+    challengeId: 'challenge-local-1', challengeTitle: 'Missão da turma',
+  });
+  app.saveGamePreferences('adicao', { goalTarget: 3, untimed: true });
+  app.unlockAchievement('first-game');
+
+  const result = await app.syncPendingGameSessions();
+  const stateResult = await app.syncProfileState();
+
+  assert.equal(player.ok, true);
+  assert.equal(result.ok, true);
+  assert.equal(result.synced, 1);
+  assert.equal(stateResult.ok, true);
+  assert.equal(profiles[0].auth_user_id, 'anonymous-1');
+  assert.equal(sessions[0].profile_id, profiles[0].id);
+  assert.equal(sessions[0].client_session_id, history.at(-1).id);
+  assert.equal(sessions[0].challenge_id, 'challenge-local-1');
+  assert.equal(profileState.profile_id, profiles[0].id);
+  assert.equal(profileState.payload.state['genios-game-preferences'].adicao.goalTarget, 3);
+  assert.ok(profileState.payload.state['genios-achievements'].includes('first-game'));
+  assert.ok(app.getGameHistory()[0].syncedAt);
+});
+
+test('falha do Auth anônimo mantém a partida local e pendente', async () => {
+  const app = createApp({}, 'CODIGO-DE-TESTE', null, true, {
+    auth: {
+      getSession: async () => ({ data: { session: null }, error: null }),
+      signInAnonymously: async () => ({ data: null, error: { message: 'anonymous provider disabled' } }),
+    },
+  });
+  assert.equal(app.registerUser({ nome: 'Kai', password: '4826', accountType: 'outside' }).ok, true);
+  app.saveGameSession({ gameKey: 'adicao', points: 12, acertos: 1, erros: 0, seconds: 30 });
+
+  const result = await app.syncPendingGameSessions();
+
+  assert.equal(result.ok, false);
+  assert.equal(result.localOnly, true);
+  assert.equal(result.pending, 1);
+  assert.equal(app.getGameHistory().length, 1);
+  assert.equal(app.getGameHistory()[0].syncedAt, undefined);
 });
 
 test('ranking local aceita somente escolares ativos e compartilha apenas com a turma', async () => {
@@ -236,6 +384,42 @@ test('ranking local aceita somente escolares ativos e compartilha apenas com a t
   assert.deepEqual(Array.from(app.upsertScore(guest.profile, { points: 9999 })), []);
   app.loginUser({ nome: 'Aluna A', turma: '4º ano', password: '2580', accountType: 'school' });
   assert.deepEqual(app.getRanking().map((entry) => entry.name), ['Aluna A', 'Aluno B']);
+});
+
+test('ranking remoto só consulta a turma do aluno escolar autenticado', async () => {
+  let queriedClass = '';
+  const supabaseClient = {
+    auth: {
+      getSession: async () => ({ data: { session: { user: { id: 'anonymous-1', is_anonymous: true } } }, error: null }),
+      signInAnonymously: async () => ({ data: { user: { id: 'anonymous-1', is_anonymous: true } }, error: null }),
+    },
+    from(table) {
+      assert.equal(table, 'profiles');
+      const filters = {};
+      return {
+        select() { return this; },
+        eq(key, value) { filters[key] = value; return this; },
+        maybeSingle: async () => ({ data: { id: 'profile-1', ...filters }, error: null }),
+      };
+    },
+    rpc: async (name, args) => {
+      if (name === 'validate_school_access_code') return { data: true, error: null };
+      assert.equal(name, 'get_class_game_ranking');
+      queriedClass = args.p_turma;
+      return { data: [{ profile_id: 'profile-1', nome_aluno: 'Bia', turma: '4º ano', pontos: 48 }], error: null };
+    },
+  };
+  const app = createApp({}, 'CODIGO-DE-TESTE', null, true, supabaseClient);
+  await app.authorizeSchoolEnrollment({ code: 'CODIGO-DE-TESTE', turma: '4º ano' });
+  app.registerUser({ nome: 'Bia', password: '1234', turma: '4º ano', accountType: 'school' });
+
+  const ranking = await app.getRemoteClassRanking('4º ano');
+  const denied = await app.getRemoteClassRanking('5º ano');
+  assert.equal(ranking.ok, true);
+  assert.equal(ranking.ranking[0].pontos, 48);
+  assert.equal(queriedClass, '4º ano');
+  assert.equal(denied.ok, false);
+  assert.equal(queriedClass, '4º ano');
 });
 
 test('cada operação gera exemplos práticos e contextos variados', () => {
@@ -431,6 +615,7 @@ test('login infantil exige código apenas ao cadastrar perfil escolar e nunca mo
   assert.ok(!html.includes('professor@escola.com') && !html.includes('123456'), 'não deve expor credenciais docentes de demonstração');
   assert.ok(!html.includes('id="email"'), 'a tela infantil não deve pedir e-mail');
   assert.ok(!html.includes('emailInput'), 'o controlador da tela não deve ler e-mail');
+  assert.ok(html.includes('if (!localDemo) await window.GeniosApp.hydrateProfileState?.()'));
   const inlineScripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
   assert.equal(inlineScripts.length, 1);
   assert.doesNotThrow(() => new Function(inlineScripts[0][1]));
@@ -498,6 +683,42 @@ test('códigos escolares e tabelas de ranking têm proteção server-side no sch
   ]) {
     assert.ok(schema.toLowerCase().includes(marker.toLowerCase()), `proteção ausente: ${marker}`);
   }
+});
+
+test('dados de jogo e perfis ficam negados por padrão até definir políticas por usuário', () => {
+  const schema = fs.readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8').toLowerCase();
+  for (const table of ['profiles', 'game_sessions', 'respostas', 'progresso_fases', 'profile_achievements', 'profile_customizations', 'class_challenges']) {
+    assert.ok(schema.includes(`alter table ${table} enable row level security`), `RLS ausente em ${table}`);
+  }
+  assert.ok(schema.includes('revoke all on table profiles, profile_state, game_sessions, respostas, progresso_fases'));
+  assert.ok(schema.includes('create policy students_read_own_game_sessions'));
+  assert.ok(schema.includes('create policy students_insert_own_game_sessions'));
+  assert.ok(schema.includes('create policy class_members_read_active_challenges'));
+  assert.ok(schema.includes('create policy teachers_insert_class_challenges'));
+  assert.ok(schema.includes('create policy teachers_read_class_profiles'));
+  assert.ok(schema.includes('create policy teachers_read_class_game_sessions'));
+  assert.ok(schema.includes('auth_user_id = auth.uid()'));
+  assert.ok(schema.includes('student_enrollment_permits'));
+  assert.ok(schema.includes("coalesce(auth.jwt() ->> 'is_anonymous', 'false') <> 'true'"));
+  assert.ok(schema.includes('create or replace function public.create_student_profile'));
+  assert.ok(schema.includes("coalesce(p_account_type, '') not in ('school', 'outside')"));
+});
+
+test('telas com sincronização carregam o cliente Supabase antes do estado da aplicação', () => {
+  for (const file of ['index.html', 'jogo.html', 'matematica.html', 'materias.html', 'professor.html', 'ranking.html']) {
+    const html = fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+    const clientIndex = html.indexOf('js/supabaseClient.js?v=2');
+    const stateIndex = html.indexOf('js/app-state.js?v=19');
+    assert.ok(clientIndex >= 0, `${file}: cliente Supabase ausente`);
+    assert.ok(stateIndex > clientIndex, `${file}: app-state precisa carregar depois do cliente`);
+  }
+});
+
+test('ranking prioriza o RPC remoto por turma e renderiza nomes como texto', () => {
+  const html = fs.readFileSync(new URL('../ranking.html', import.meta.url), 'utf8');
+  assert.ok(html.includes('getRemoteClassRanking?.(player.turma)'));
+  assert.ok(html.includes('playerCell.append(avatar, document.createTextNode(` ${playerItem.name}`))'));
+  assert.equal(html.includes('${playerItem.name}</td>'), false);
 });
 
 test('dock remove tema, mantém música, recupera áudio suspenso e protege o PIN', async () => {
@@ -689,5 +910,14 @@ test('marca usa o GIF animado nos cinco cabeçalhos internos', () => {
   for (const file of ['jogo.html', 'matematica.html', 'materias.html', 'professor.html', 'ranking.html']) {
     const html = fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
     assert.ok(html.includes('brand__mark"><img src="img/Icone%20do%20Jogo.gif"'), `${file}: ícone da marca ausente`);
+  }
+});
+
+test('créditos aparecem em todos os rodapés com a equipe e a faculdade', () => {
+  for (const file of ['index.html', 'jogo.html', 'matematica.html', 'materias.html', 'professor.html', 'ranking.html']) {
+    const html = fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+    assert.ok(html.includes('class="footer-credits"'), `${file}: controle de créditos ausente`);
+    assert.ok(html.includes('Pedro Lucas, Vitor, Murillo, Marcelo, Guilherme e Mickael'), `${file}: equipe ausente`);
+    assert.ok(html.includes('<strong>Faculdade:</strong> Cruzeiro do Sul'), `${file}: faculdade ausente`);
   }
 });

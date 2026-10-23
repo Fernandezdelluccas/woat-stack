@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=26" />
+  <link rel="stylesheet" href="css/style.css?v=28" />
 </head>
 <body>
 
@@ -173,9 +173,24 @@
         <div class="challenge-list" id="challengeList"></div>
       </div>
 
-      <section class="teacher-report-empty" aria-labelledby="teacherReportTitle">
+      <section class="teacher-report-empty teacher-report-panel" id="teacherReportPanel" aria-labelledby="teacherReportTitle" hidden>
         <h2 id="teacherReportTitle">Desempenho da turma</h2>
-        <p>Os relatórios reais aparecerão aqui quando os dados das partidas estiverem conectados ao Supabase.</p>
+        <p id="teacherReportFeedback" class="hint" role="status" aria-live="polite">Carregando dados da sua turma...</p>
+        <div class="teacher-report-stats">
+          <p>Alunos: <strong id="reportStudentCount">0</strong></p>
+          <p>Partidas: <strong id="reportSessionCount">0</strong></p>
+          <p>Acertos: <strong id="reportAccuracy">0%</strong></p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Aluno</th><th>Turma</th><th>Minijogos</th><th>Pontos</th><th>Acertos</th><th>Erros</th><th>Tempo</th></tr></thead>
+            <tbody id="teacherReportRows"></tbody>
+          </table>
+        </div>
+        <div class="teacher-question-reports">
+          <h3>Relatos de questões</h3>
+          <ul id="teacherQuestionReports" aria-live="polite"></ul>
+        </div>
       </section>
 
       <div class="grid" style="grid-template-columns: 2fr 1fr; margin-bottom: 28px;" hidden>
@@ -308,20 +323,35 @@
     </div>
   </main>
 
-  <footer class="footer">G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</footer>
+  <footer class="footer site-footer">
+    <span>G&Ecirc;NIOS DO JOGO · Plataforma de Jogos Educativos de Exatas</span>
+    <details class="footer-credits">
+      <summary>Créditos</summary>
+      <div class="footer-credits__content">
+        <p><strong>Equipe:</strong> Pedro Lucas, Vitor, Murillo, Marcelo, Guilherme e Mickael</p>
+        <p><strong>Faculdade:</strong> Cruzeiro do Sul</p>
+      </div>
+    </details>
+  </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabaseClient.js?v=1"></script>
+  <script src="js/supabaseClient.js?v=2"></script>
   <script src="js/nav.js?v=6"></script>
-  <script src="js/app-state.js?v=14"></script>
+  <script src="js/app-state.js?v=19"></script>
   <script src="js/professor-auth.js?v=8"></script>
-  <script src="js/teacher-access-codes.js?v=1"></script>
+  <script src="js/teacher-access-codes.js?v=4"></script>
+  <script src="js/professor-dashboard.js?v=3"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const form = document.getElementById('challengeForm');
       const list = document.getElementById('challengeList');
       const feedback = document.getElementById('challengeFeedback');
       if (!form || !window.GeniosApp) return;
+      const localMode = window.location.search === '?modo=local';
+      const gameLabels = {
+        adicao: 'Adição', subtracao: 'Subtração', multiplicacao: 'Multiplicação',
+        divisao: 'Divisão', formas: 'Formas geométricas',
+      };
       const renderChallenges = () => {
         list.replaceChildren();
         const challenges = window.GeniosApp.getChallenges();
@@ -338,16 +368,13 @@
           const title = document.createElement('strong');
           title.textContent = `${challenge.turma} · ${challenge.title}`;
           const details = document.createElement('span');
-          const gameLabels = {
-            adicao: 'Adição', subtracao: 'Subtração', multiplicacao: 'Multiplicação',
-            divisao: 'Divisão', formas: 'Formas geométricas',
-          };
-          details.textContent = `${gameLabels[challenge.game] || 'Minijogo'} · meta de ${challenge.target} acertos por etapa`;
+          const syncLabel = challenge.supabaseId ? ' · sincronizada' : ' · neste navegador';
+          details.textContent = `${gameLabels[challenge.game] || 'Minijogo'} · meta de ${challenge.target} acertos por etapa${syncLabel}`;
           item.append(title, details);
           list.appendChild(item);
         });
       };
-      form.addEventListener('submit', (event) => {
+      form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const result = window.GeniosApp.createChallenge({
           title: document.getElementById('challengeTitle').value,
@@ -355,9 +382,19 @@
           target: document.getElementById('challengeTarget').value,
           turma: document.getElementById('challengeClass').value,
         });
-        feedback.textContent = result.ok
-          ? `Missão publicada para ${result.challenge.turma}. Ela aparecerá para os alunos dessa turma neste navegador.`
-          : result.message;
+        if (!result.ok) {
+          feedback.textContent = result.message;
+          return;
+        }
+
+        if (localMode) {
+          feedback.textContent = `Missão criada para ${result.challenge.turma} neste navegador.`;
+        } else {
+          const published = await window.GeniosApp.publishClassChallenge(result.challenge);
+          feedback.textContent = published.ok
+            ? `Missão publicada para ${result.challenge.turma}. Os alunos autorizados já podem encontrá-la.`
+            : `${published.message} A missão continua disponível neste navegador.`;
+        }
         if (result.ok) { form.reset(); renderChallenges(); }
       });
       renderChallenges();

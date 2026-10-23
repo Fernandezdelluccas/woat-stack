@@ -21,13 +21,14 @@ Use a raiz do repositório como Root Directory, Framework Preset `Other` e deixe
 
 ## Acesso escolar e visitante
 
-Crianças entram com nome/apelido e PIN de quatro dígitos. O perfil escolar pede turma e um código privado fornecido pelo professor; o cadastro visitante não pede código. O código é validado pelo RPC do Supabase e não há código provisório embutido no site. Se o RPC ainda não estiver configurado, o cadastro escolar é bloqueado. Visitantes não consultam nem pontuam no ranking interno.
+Crianças entram com nome/apelido e PIN de quatro dígitos. O perfil escolar pede turma e um código privado fornecido pelo professor; o cadastro visitante não pede código. O código é validado pelo RPC do Supabase e não há código provisório embutido no site. Visitantes não consultam nem pontuam no ranking da escola.
 
-Para habilitar o cadastro escolar e o painel docente:
+Para habilitar o cadastro escolar, sincronização do jogo e painel docente:
 
-1. Aplique `supabase/schema.sql` no SQL Editor do Supabase.
-2. Crie contas de professor no Supabase Auth. Associe cada UUID de usuário à escola e às turmas autorizadas nas tabelas `teacher_accounts` e `teacher_classes`.
-3. O professor autorizado cria códigos privados no painel. O site guarda somente o hash SHA-256; o código em texto é exibido uma única vez. Cada código pode ser limitado por quantidade de cadastros e validade, e pode ser revogado.
+1. Anonymous Sign-Ins está habilitado neste projeto e é usado para vincular o perfil local a uma identidade Supabase sem e-mail.
+2. Reaplique o conteúdo completo e atualizado de `supabase/schema.sql` no SQL Editor do projeto `vvcdxxcdhmetfvdtwkpq`. A versão anterior executada ainda não continha `profile_state` nem o RPC `get_class_game_ranking`.
+3. Crie contas docentes no Supabase Auth e associe cada UUID às turmas autorizadas em `teacher_accounts` e `teacher_classes`.
+4. O docente autorizado cria códigos privados e missões no painel. Códigos são guardados somente como hash; partidas concluídas sincronizam com `game_sessions`, o estado do perfil com `profile_state` e missões com `class_challenges`. O ranking é agregado das partidas e as missões ficam visíveis apenas à turma autorizada.
 
 Exemplo de provisionamento inicial de professor, substituindo o UUID e os nomes:
 
@@ -39,4 +40,4 @@ insert into public.teacher_classes (teacher_id, turma)
 values ('UUID-DO-USUARIO-AUTH', '4º ano');
 ```
 
-Os perfis, partidas, cosméticos, desafios e conquistas ainda são guardados neste navegador e dispositivo; não há sincronização remota de contas. Pontuações remotas estão fechadas para acesso anônimo até a configuração de autenticação e políticas RLS por aluno/turma. A chave `anon` do Supabase é pública e não deve ser usada como única autorização.
+As telas mantêm uma cópia local e tentam sincronizar sessões, ranking, missões, preferências, cosméticos, conquistas e relatos quando o Auth/RLS está disponível. O quadro e o desenho de rascunho permanecem locais. A identidade anônima é vinculada ao navegador e não recupera automaticamente o perfil em outro aparelho. A pontuação é calculada no cliente e não deve ser tratada como inviolável para competição ou recompensa de valor real. A chave publicável fica no cliente; nunca coloque uma chave `secret`/`service_role` no navegador.

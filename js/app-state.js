@@ -16,6 +16,15 @@
     challenges: 'genios-challenges',
     classChallenges: 'genios-class-challenges',
   };
+  const PROFILE_STATE_KEYS = [
+    STORAGE_KEYS.gamePreferences,
+    STORAGE_KEYS.cosmetics,
+    STORAGE_KEYS.selectedCosmetic,
+    STORAGE_KEYS.character,
+    STORAGE_KEYS.achievements,
+    STORAGE_KEYS.questionReports,
+  ];
+  let profileStateSyncTimer = null;
 
   const cosmeticsCatalog = [
     { id: 'starter', label: 'Mascote base', emoji: '🦊', price: 0, unlocks: ['🦊'] },
@@ -99,6 +108,9 @@
       avatar: String(player.avatar || '🦊'),
       accountType: player.accountType === 'outside' ? 'outside' : 'school',
       passwordHash: String(player.passwordHash || ''),
+      supabaseProfileId: String(player.supabaseProfileId || ''),
+      supabaseUserId: String(player.supabaseUserId || ''),
+      localOnly: Boolean(player.localOnly),
       coins: Number(player.coins || 0),
       lastPlayed: player.lastPlayed || new Date().toISOString(),
     };
@@ -129,6 +141,17 @@
 
   function writeScopedJson(key, value) {
     writeJson(getScopedStorageKey(key), value);
+    if (PROFILE_STATE_KEYS.includes(key)) queueProfileStateSync();
+  }
+
+  function queueProfileStateSync() {
+    const player = getPlayer();
+    if (!player || player.localOnly || typeof window.setTimeout !== 'function') return;
+    if (profileStateSyncTimer !== null) window.clearTimeout(profileStateSyncTimer);
+    profileStateSyncTimer = window.setTimeout(() => {
+      profileStateSyncTimer = null;
+      syncProfileState();
+    }, 1200);
   }
 
   function getAccounts() {
@@ -156,6 +179,76 @@
     return normalized;
   }
 
+  async function getAnonymousSupabaseUser() {
+    const client = window.supabaseClient;
+    if (!client?.auth?.getSession || !client.auth.signInAnonymously) {
+      return { ok: false, message: 'Supabase Auth não está disponível.' };
+    }
+
+    try {
+      const { data, error } = await client.auth.getSession();
+      if (error) return { ok: false, message: 'Não foi possível verificar a sessão remota.' };
+      let user = data?.session?.user;
+      if (user && user.is_anonymous !== true) {
+        return { ok: false, message: 'A sessão atual não é um perfil de aluno anônimo.' };
+      }
+
+      if (!user) {
+        const result = await client.auth.signInAnonymously();
+        if (result.error || !result.data?.user) {
+          return { ok: false, message: 'Ative o login anônimo no Supabase para sincronizar neste aparelho.' };
+        }
+        user = result.data.user;
+      }
+
+      if (user.is_anonymous !== true) {
+        return { ok: false, message: 'O Supabase não retornou uma sessão anônima válida.' };
+      }
+      return { ok: true, client, user };
+    } catch (error) {
+      return { ok: false, message: 'O Supabase não respondeu; os dados continuam neste aparelho.' };
+    }
+  }
+
+  async function syncActiveProfile() {
+    const player = getPlayer();
+    if (!player) return { ok: false, localOnly: true, message: 'Nenhum perfil está ativo.' };
+    if (player.localOnly) return { ok: false, localOnly: true, message: 'O modo de teste local não envia dados ao Supabase.' };
+
+    const auth = await getAnonymousSupabaseUser();
+    if (!auth.ok) return { ...auth, localOnly: true };
+    if (player.supabaseUserId && player.supabaseUserId !== auth.user.id) {
+      return { ok: false, localOnly: true, message: 'A sessão remota original foi perdida; os dados continuam neste aparelho para evitar duplicar o perfil.' };
+    }
+
+    const { data: existing, error: lookupError } = await auth.client
+      .from('profiles')
+      .select('id')
+      .eq('auth_user_id', auth.user.id)
+      .eq('nome', player.nome)
+      .eq('turma', player.turma)
+      .maybeSingle();
+    if (lookupError) return { ok: false, localOnly: true, message: 'Não foi possível consultar o perfil remoto.' };
+
+    let profileId = existing?.id;
+    if (!profileId) {
+      const { data, error } = await auth.client.rpc('create_student_profile', {
+        p_nome: player.nome,
+        p_turma: player.turma,
+        p_avatar: player.avatar,
+        p_account_type: player.accountType,
+      });
+      if (error || typeof data !== 'string' || data.length === 0) {
+        return { ok: false, localOnly: true, message: 'O perfil continua neste aparelho; não foi possível sincronizá-lo.' };
+      }
+      profileId = data;
+    }
+
+    const syncedPlayer = { ...player, supabaseProfileId: profileId, supabaseUserId: auth.user.id };
+    setPlayer(syncedPlayer);
+    return { ok: true, profileId, userId: auth.user.id, client: auth.client };
+  }
+
   function clearPlayer() {
     localStorage.removeItem(STORAGE_KEYS.player);
   }
@@ -170,7 +263,10 @@
       return { ok: false, message: 'A validação da escola está indisponível. Peça ajuda ao professor.' };
     }
 
-    const { data, error } = await window.supabaseClient.rpc('validate_school_access_code', {
+    const auth = await getAnonymousSupabaseUser();
+    if (!auth.ok) return { ok: false, message: auth.message };
+
+    const { data, error } = await auth.client.rpc('validate_school_access_code', {
       p_code: cleanCode,
       p_turma: cleanClass,
     });
@@ -324,6 +420,7 @@
       const nextAvatar = cosmeticsCatalog.find((item) => item.id === id)?.emoji || player.avatar || '🦊';
       setPlayer({ ...player, avatar: nextAvatar });
     }
+    queueProfileStateSync();
     return true;
   }
 
@@ -492,9 +589,22 @@
     return { ok: true, profile: account };
   }
 
-  function deleteActiveProfile() {
+  async function deleteActiveProfile() {
     const player = getPlayer();
     if (!player) return { ok: false, message: 'Nenhum perfil está ativo.' };
+    if (player.supabaseProfileId && !player.localOnly) {
+      const auth = await getAnonymousSupabaseUser();
+      if (!auth.ok) return { ok: false, message: 'Não foi possível confirmar a sessão remota; o perfil local foi mantido.' };
+      try {
+        const { error } = await auth.client.from('profiles')
+          .delete()
+          .eq('id', player.supabaseProfileId)
+          .eq('auth_user_id', auth.user.id);
+        if (error) return { ok: false, message: 'Não foi possível excluir o perfil remoto; os dados locais foram mantidos.' };
+      } catch (error) {
+        return { ok: false, message: 'A conexão falhou; os dados locais foram mantidos.' };
+      }
+    }
     const accounts = getAccounts().filter((account) => account.email !== player.email);
     writeJson(STORAGE_KEYS.accounts, accounts);
     [STORAGE_KEYS.player, 'genios-session'].forEach((key) => localStorage.removeItem(key));
@@ -521,6 +631,8 @@
       seconds: Math.max(0, Math.floor(Number(session?.seconds) || 0)),
       bestStreak: Math.max(0, Math.floor(Number(session?.bestStreak) || 0)),
       answers: Array.isArray(session?.answers) ? session.answers.slice(0, 100) : [],
+      challengeId: String(session?.challengeId || '').slice(0, 80),
+      challengeTitle: String(session?.challengeTitle || '').slice(0, 80),
       completedAt: new Date().toISOString(),
     };
     const history = [...getGameHistory(), entry].slice(-100);
@@ -528,11 +640,232 @@
     return history;
   }
 
+  async function syncGameSession(session) {
+    if (!session?.id) return { ok: false, localOnly: true, message: 'Sessão sem identificador local.' };
+    const profile = await syncActiveProfile();
+    if (!profile.ok) return profile;
+
+    const validated = validateScore({ points: session.points, acertos: session.correct, erros: session.wrong });
+    try {
+      const { error } = await profile.client.from('game_sessions').insert({
+        profile_id: profile.profileId,
+        client_session_id: session.id,
+        game_key: session.gameKey,
+        score: validated.points,
+        correct_answers: validated.correct,
+        wrong_answers: validated.wrong,
+        elapsed_seconds: Math.max(0, Math.floor(Number(session.seconds) || 0)),
+        best_streak: Math.max(0, Math.floor(Number(session.bestStreak) || 0)),
+        answer_log: Array.isArray(session.answers) ? session.answers.slice(0, 100) : [],
+        challenge_id: session.challengeId || null,
+        challenge_title: session.challengeTitle || null,
+      });
+
+      if (error && error.code !== '23505') {
+        return { ok: false, localOnly: true, message: 'A partida continua salva neste aparelho; não foi possível sincronizar.' };
+      }
+
+      const history = getGameHistory().map((entry) => (
+        entry.id === session.id ? { ...entry, syncedAt: new Date().toISOString() } : entry
+      ));
+      writeScopedJson(STORAGE_KEYS.gameHistory, history);
+      return { ok: true, duplicate: error?.code === '23505' };
+    } catch (error) {
+      return { ok: false, localOnly: true, message: 'A partida continua salva neste aparelho; a conexão falhou.' };
+    }
+  }
+
+  async function syncPendingGameSessions() {
+    const pending = getGameHistory().filter((session) => !session.syncedAt);
+    let synced = 0;
+    for (const session of pending) {
+      const result = await syncGameSession(session);
+      if (result.ok) synced += 1;
+      else return { ...result, synced, pending: pending.length - synced };
+    }
+    return { ok: true, synced, pending: 0 };
+  }
+
+  function mergeProfileStateValue(key, localValue, remoteValue) {
+    if (localValue === null || localValue === undefined) return remoteValue;
+    if (remoteValue === null || remoteValue === undefined) return localValue;
+    if (Array.isArray(localValue) && Array.isArray(remoteValue)) {
+      const values = [...remoteValue, ...localValue];
+      const unique = new Map(values.map((item) => [item?.id || item, item]));
+      return Array.from(unique.values()).slice(-100);
+    }
+    if (localValue && remoteValue && typeof localValue === 'object' && typeof remoteValue === 'object') {
+      return { ...remoteValue, ...localValue };
+    }
+    return key === STORAGE_KEYS.selectedCosmetic ? localValue : remoteValue;
+  }
+
+  async function syncProfileState() {
+    const profile = await syncActiveProfile();
+    if (!profile.ok) return profile;
+    const player = getPlayer();
+    const state = {};
+    PROFILE_STATE_KEYS.forEach((key) => {
+      const raw = localStorage.getItem(getScopedStorageKey(key));
+      if (raw === null) return;
+      try { state[key] = JSON.parse(raw); } catch (error) { state[key] = null; }
+    });
+
+    try {
+      const { error } = await profile.client.from('profile_state').upsert({
+        profile_id: profile.profileId,
+        payload: { version: 1, coins: Number(player?.coins || 0), state },
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'profile_id' });
+      if (error) return { ok: false, localOnly: true, message: 'Dados mantidos neste aparelho; não foi possível sincronizar as preferências.' };
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, localOnly: true, message: 'Dados mantidos neste aparelho; a conexão falhou.' };
+    }
+  }
+
+  async function hydrateProfileState() {
+    const profile = await syncActiveProfile();
+    if (!profile.ok) return profile;
+
+    try {
+      const { data, error } = await profile.client.from('profile_state')
+        .select('payload')
+        .eq('profile_id', profile.profileId)
+        .maybeSingle();
+      if (error) return { ok: false, localOnly: true, message: 'Não foi possível carregar as preferências remotas.' };
+
+      const payload = data?.payload;
+      if (!payload || payload.version !== 1 || !payload.state) return syncProfileState();
+
+      PROFILE_STATE_KEYS.forEach((key) => {
+        if (!Object.hasOwn(payload.state, key)) return;
+        const localValue = readJson(getScopedStorageKey(key), null);
+        const merged = mergeProfileStateValue(key, localValue, payload.state[key]);
+        localStorage.setItem(getScopedStorageKey(key), JSON.stringify(merged));
+      });
+
+      const player = getPlayer();
+      if (player && Number.isFinite(Number(payload.coins))) {
+        setPlayer({ ...player, coins: Math.max(Number(player.coins || 0), Number(payload.coins)) });
+      }
+      return syncProfileState();
+    } catch (error) {
+      return { ok: false, localOnly: true, message: 'Não foi possível carregar o estado remoto.' };
+    }
+  }
+
   function getChallenges(turma) {
     const challenges = readJson(STORAGE_KEYS.classChallenges, []);
     if (!Array.isArray(challenges)) return [];
     const cleanClass = String(turma || '').trim();
     return cleanClass ? challenges.filter((challenge) => challenge.turma === cleanClass) : challenges;
+  }
+
+  function markChallengeSynced(localChallengeId, supabaseId) {
+    const challenges = readJson(STORAGE_KEYS.classChallenges, []);
+    if (!Array.isArray(challenges)) return;
+    writeJson(STORAGE_KEYS.classChallenges, challenges.map((challenge) => (
+      challenge.id === localChallengeId ? { ...challenge, supabaseId } : challenge
+    )));
+  }
+
+  async function publishClassChallenge(challenge) {
+    const client = window.supabaseClient;
+    if (!client?.auth?.getSession) {
+      return { ok: false, localOnly: true, message: 'Missão salva neste navegador; Auth docente indisponível.' };
+    }
+
+    try {
+      const { data, error: authError } = await client.auth.getSession();
+      const user = data?.session?.user;
+      if (authError || !user || user.is_anonymous === true) {
+        return { ok: false, localOnly: true, message: 'Entre com a conta docente autorizada para publicar a missão.' };
+      }
+
+      const { data: remote, error } = await client.from('class_challenges').insert({
+        teacher_user_id: user.id,
+        local_challenge_id: challenge.id,
+        title: challenge.title,
+        game_key: challenge.game,
+        turma: challenge.turma,
+        target: challenge.target,
+        active: true,
+      }).select('id').single();
+
+      if (error && error.code !== '23505') {
+        return { ok: false, localOnly: true, message: 'Missão salva neste navegador; não foi possível publicar no Supabase.' };
+      }
+
+      let supabaseId = remote?.id;
+      if (!supabaseId) {
+        const { data: existing, error: lookupError } = await client.from('class_challenges')
+          .select('id')
+          .eq('teacher_user_id', user.id)
+          .eq('local_challenge_id', challenge.id)
+          .maybeSingle();
+        if (lookupError || !existing?.id) {
+          return { ok: false, localOnly: true, message: 'A missão está local, mas não foi possível confirmar a publicação.' };
+        }
+        supabaseId = existing.id;
+      }
+
+      markChallengeSynced(challenge.id, supabaseId);
+      return { ok: true, supabaseId };
+    } catch (error) {
+      return { ok: false, localOnly: true, message: 'Missão salva neste navegador; a conexão com o Supabase falhou.' };
+    }
+  }
+
+  async function getRemoteClassChallenges(turma) {
+    const cleanClass = String(turma || '').trim();
+    if (!cleanClass) return { ok: false, challenges: [], message: 'Turma não informada.' };
+    const profile = await syncActiveProfile();
+    if (!profile.ok) return { ...profile, challenges: [] };
+
+    try {
+      const { data, error } = await profile.client.from('class_challenges')
+        .select('id, local_challenge_id, title, game_key, turma, target, created_at')
+        .eq('turma', cleanClass)
+        .eq('active', true)
+        .order('created_at', { ascending: false });
+      if (error) return { ok: false, localOnly: true, challenges: [], message: 'Não foi possível carregar missões remotas.' };
+
+      return {
+        ok: true,
+        challenges: (data || []).map((challenge) => ({
+          id: challenge.id,
+          supabaseId: challenge.id,
+          localId: challenge.local_challenge_id || '',
+          title: challenge.title,
+          game: challenge.game_key,
+          turma: challenge.turma,
+          target: challenge.target,
+          createdAt: challenge.created_at,
+        })),
+      };
+    } catch (error) {
+      return { ok: false, localOnly: true, challenges: [], message: 'Não foi possível carregar missões remotas.' };
+    }
+  }
+
+  async function getRemoteClassRanking(turma) {
+    const cleanClass = String(turma || '').trim();
+    const player = getPlayer();
+    if (!player || player.accountType !== 'school' || !cleanClass || player.turma !== cleanClass) {
+      return { ok: false, localOnly: true, ranking: [], message: 'Ranking remoto disponível apenas para a turma do perfil escolar.' };
+    }
+
+    const profile = await syncActiveProfile();
+    if (!profile.ok) return { ...profile, ranking: [] };
+
+    try {
+      const { data, error } = await profile.client.rpc('get_class_game_ranking', { p_turma: cleanClass });
+      if (error) return { ok: false, localOnly: true, ranking: [], message: 'Não foi possível carregar o ranking remoto.' };
+      return { ok: true, ranking: data || [] };
+    } catch (error) {
+      return { ok: false, localOnly: true, ranking: [], message: 'Não foi possível carregar o ranking remoto.' };
+    }
   }
 
   function createChallenge(challenge) {
@@ -652,6 +985,11 @@
     getAchievements,
     getGameHistory,
     saveGameSession,
+    syncGameSession,
+    syncPendingGameSessions,
+    syncActiveProfile,
+    syncProfileState,
+    hydrateProfileState,
     getGameDraft,
     saveGameDraft,
     clearGameDraft,
@@ -664,6 +1002,9 @@
     unlockAchievement,
     getChallenges,
     createChallenge,
+    publishClassChallenge,
+    getRemoteClassChallenges,
+    getRemoteClassRanking,
     validateScore,
     setTeacherSession,
     isTeacherLoggedIn,
