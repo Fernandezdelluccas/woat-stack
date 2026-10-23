@@ -917,7 +917,7 @@ test('créditos aparecem em todos os rodapés com a equipe e a faculdade', () =>
   for (const file of ['index.html', 'jogo.html', 'matematica.html', 'materias.html', 'professor.html', 'ranking.html']) {
     const html = fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
     assert.ok(html.includes('class="footer-credits"'), `${file}: controle de créditos ausente`);
-    assert.ok(html.includes('Pedro Lucas, Vitor, Murillo, Marcelo, Guilherme e Mickael'), `${file}: equipe ausente`);
+    assert.ok(html.includes('Pedro Lucas, Vitor, Murillo, Marcelo, Guilherme, Mickael e Helio'), `${file}: equipe ausente`);
     assert.ok(html.includes('<strong>Faculdade:</strong> Cruzeiro do Sul'), `${file}: faculdade ausente`);
   }
 });
