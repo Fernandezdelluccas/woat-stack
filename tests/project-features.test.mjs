@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
-import { buildQuestions, GAME_TYPES } from '../js/game.mjs';
+import { buildQuestions, GAME_TYPES, getGradeFromClassroom } from '../js/game.mjs';
 
 function createApp(initialData = {}, validSchoolCode = 'CODIGO-DE-TESTE', sharedStorage = null, withSupabase = true, supabaseClientOverride = null) {
   const storage = sharedStorage || new Map(Object.entries(initialData));
@@ -442,7 +442,7 @@ test('Frações gera quatro alternativas próprias e fica disponível em jogo e 
     assert.ok(question.options.includes(question.correctAnswer));
     const [numerator, denominator] = question.correctAnswer.split('/').map(Number);
     assert.ok(numerator > 0 && numerator < denominator);
-    assert.ok(denominator >= 5 && denominator <= 9);
+    assert.ok(denominator >= 2 && denominator <= 10);
   }
   const math = fs.readFileSync(new URL('../matematica.html', import.meta.url), 'utf8');
   const teacher = fs.readFileSync(new URL('../professor.html', import.meta.url), 'utf8');
@@ -452,6 +452,52 @@ test('Frações gera quatro alternativas próprias e fica disponível em jogo e 
   assert.ok(teacher.includes('<option value="fracoes">Frações</option>'));
   assert.ok(appState.includes("'formas', 'fracoes'"));
   assert.ok(schema.includes("'formas', 'fracoes'"));
+});
+
+test('todos os minijogos respeitam o limite de conteúdo da série escolhida', () => {
+  const rules = {
+    1: { total: 20, factor: 3, divisor: 3, quotient: 4, fraction: 4, shapes: ['Círculo', 'Triângulo', 'Quadrado'] },
+    2: { total: 100, factor: 5, divisor: 5, quotient: 6, fraction: 6, shapes: ['Círculo', 'Triângulo', 'Quadrado', 'Retângulo'] },
+    3: { total: 1000, factor: 9, divisor: 9, quotient: 10, fraction: 8, shapes: ['Círculo', 'Triângulo', 'Quadrado', 'Retângulo', 'Pentágono'] },
+    4: { total: 10000, factor: 10, divisor: 10, quotient: 10, fraction: 10, shapes: ['Círculo', 'Triângulo', 'Quadrado', 'Retângulo', 'Pentágono', 'Hexágono'] },
+    5: { total: 100000, factor: 12, divisor: 12, quotient: 12, fraction: 12, shapes: ['Círculo', 'Triângulo', 'Quadrado', 'Retângulo', 'Pentágono', 'Hexágono'] },
+  };
+  for (const grade of [1, 2, 3, 4, 5]) {
+    for (const gameKey of Object.keys(GAME_TYPES)) {
+      const questions = buildQuestions(gameKey, 40, { grade });
+      assert.ok(questions.every((question) => question.grade === grade), `${gameKey}: série não propagada`);
+      for (const question of questions) {
+        if (gameKey === 'adicao' || gameKey === 'subtracao') {
+          assert.ok(question.correctAnswer <= rules[grade].total, `${gameKey}: excedeu o limite da série ${grade}`);
+        }
+        if (gameKey === 'multiplicacao') {
+          assert.ok(question.correctAnswer <= rules[grade].factor ** 2, `multiplicação excedeu a série ${grade}`);
+        }
+        if (gameKey === 'divisao') {
+          const divisor = Number(question.prompt.match(/em (\d+) grupos/)?.[1]);
+          assert.ok(divisor <= rules[grade].divisor, `divisor excedeu a série ${grade}`);
+          assert.ok(question.correctAnswer <= rules[grade].quotient, `quociente excedeu a série ${grade}`);
+        }
+        if (gameKey === 'fracoes') {
+          const denominator = Number(question.correctAnswer.split('/')[1]);
+          assert.ok(denominator <= rules[grade].fraction, `fração excedeu a série ${grade}`);
+        }
+        if (gameKey === 'formas') {
+          assert.ok(rules[grade].shapes.includes(question.correctAnswer), `forma não ensinada na série ${grade}`);
+          if (question.correctAnswer === 'Círculo') assert.ok(!question.visual.groups.includes('0 lados'));
+        }
+      }
+    }
+  }
+  assert.deepEqual([1, 2, 3, 4, 5].map((grade) => getGradeFromClassroom(`${grade}º ano`)), [1, 2, 3, 4, 5]);
+  assert.equal(getGradeFromClassroom('Visitante'), 4);
+  assert.equal(getGradeFromClassroom('8º ano'), 4);
+
+  const runner = fs.readFileSync(new URL('../js/game-runner.js', import.meta.url), 'utf8');
+  const html = fs.readFileSync(new URL('../jogo.html', import.meta.url), 'utf8');
+  assert.ok(runner.includes('grade: schoolGrade'));
+  assert.ok(runner.includes('Conteúdo até o ${schoolGrade}º ano'));
+  assert.ok(html.includes('js/game-runner.js?v=19'));
 });
 
 test('scripts inline de todas as páginas compilam e perfis não entram em innerHTML', () => {

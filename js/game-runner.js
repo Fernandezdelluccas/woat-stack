@@ -1,4 +1,4 @@
-import { buildQuestions, getGameDefinition, formatAnswer } from './game.mjs?v=12';
+import { buildQuestions, getGameDefinition, formatAnswer, getGradeFromClassroom } from './game.mjs?v=13';
 
 const gameKey = new URLSearchParams(window.location.search).get('game') || 'adicao';
 const searchParams = new URLSearchParams(window.location.search);
@@ -6,9 +6,12 @@ const manualTutorialRequested = searchParams.get('tutorial') === 'manual';
 const challengeId = searchParams.get('challenge') || '';
 const challengeTitle = searchParams.get('title') || '';
 const challengeGoal = Math.min(4, Math.max(1, Math.floor(Number(searchParams.get('goal')) || 2)));
-const gameInfo = getGameDefinition(gameKey);
-const baseQuestions = buildQuestions(gameKey, 7);
 const player = window.GeniosApp?.getPlayer?.() || { nome: 'Jogador', turma: '4º ano', avatar: '🦊', coins: 0 };
+const schoolGrade = getGradeFromClassroom(player.turma);
+const gradeDescription = player.accountType === 'school'
+  ? `Conteúdo até o ${schoolGrade}º ano`
+  : `Dificuldade de referência: ${schoolGrade}º ano`;
+const gameInfo = getGameDefinition(gameKey);
 const gamePreferences = window.GeniosApp?.getGamePreferences?.(gameKey) || { goalTarget: 2, untimed: false };
 
 const state = {
@@ -89,6 +92,7 @@ function getQuestionsForLevel() {
   const usedInCurrentGame = state.answers.map((answer) => answer.contextId).filter(Boolean);
   const generatedQuestions = buildQuestions(gameKey, requestedTotal + 3, {
     excludeContextIds: [...recentContexts, ...usedInCurrentGame],
+    grade: schoolGrade,
   });
   return generatedQuestions.slice(0, requestedTotal);
 }
@@ -269,7 +273,7 @@ function renderQuestion() {
     return;
   }
 
-  questionMeta.textContent = `${state.challengeTitle ? `${state.challengeTitle} · ` : ''}${levelMap[state.level]?.label || 'Desafio'} · ${gameInfo.label}`;
+  questionMeta.textContent = `${state.challengeTitle ? `${state.challengeTitle} · ` : ''}${levelMap[state.level]?.label || 'Desafio'} · ${gameInfo.label} · ${gradeDescription}`;
   speakToPlayer('LEIA A HISTÓRIA E OBSERVE O EXEMPLO VISUAL. DEPOIS ESCOLHA UMA RESPOSTA.');
   renderQuestionVisual(current.visual);
   if (questionExample) {
@@ -865,7 +869,7 @@ function finishLevel() {
     state.wrong = 0;
     currentQuestions = getQuestionsForLevel();
     saveCurrentDraft();
-    questionMeta.textContent = `${levelMap[state.level]?.label || 'Próxima fase'} · ${gameInfo.label}`;
+    questionMeta.textContent = `${levelMap[state.level]?.label || 'Próxima fase'} · ${gameInfo.label} · ${gradeDescription}`;
     questionPrompt.textContent = `Nível concluído! 🎉 Vamos para ${levelMap[state.level]?.label || 'a próxima aventura'}!`;
     speakToPlayer('NÍVEL CONCLUÍDO! VOCÊ ESTÁ PRONTO PARA A PRÓXIMA MISSÃO!');
     optionsGrid.innerHTML = `
@@ -894,7 +898,7 @@ function finishLevel() {
 
   const reason = state.retryReason || 'Tente identificar o grupo da operação e pensar na ideia por trás do cálculo.';
   speakToPlayer('VOCÊ PODE PASSAR DEPOIS DE REVISAR. VAMOS ENTENDER JUNTOS O QUE ACONTECEU.');
-  questionMeta.textContent = 'Revise e tente de novo';
+  questionMeta.textContent = `Revise e tente de novo · ${gradeDescription}`;
   questionPrompt.textContent = 'Você ainda não passou esta fase.';
   optionsGrid.innerHTML = `
     <div class="card" style="grid-column: 1 / -1;">
