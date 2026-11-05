@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=28" />
+  <link rel="stylesheet" href="css/style.css?v=29" />
   <style>
     body { justify-content: flex-start; min-height: 100svh; }
     .login-main { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; padding: clamp(16px, 3vh, 32px) 16px 32px; }
@@ -71,7 +71,7 @@
 
         <div class="field school-only" id="schoolCodeField">
           <label for="schoolCode">Código da escola</label>
-          <input type="password" id="schoolCode" name="schoolCode" placeholder="Peça o código ao professor" autocomplete="off" maxlength="64" />
+          <input type="password" id="schoolCode" name="schoolCode" placeholder="Peça o código à diretoria" autocomplete="off" maxlength="64" />
         </div>
 
         <div class="field register-only" id="avatarField">
@@ -105,9 +105,10 @@
           <details class="login-help">
         <summary>Quais dados devo usar para entrar?</summary>
         <ul>
-          <li><strong>Aluno da escola:</strong> use o código privado da turma fornecido pelo professor.</li>
+          <li><strong>Aluno da escola:</strong> use o código privado da turma fornecido pela diretoria.</li>
           <li><strong>Visitante:</strong> nome e PIN escolhidos ao criar o perfil.</li>
-          <li><strong>Professor:</strong> use a conta fornecida pelo administrador da escola.</li>
+          <li><strong>Professor:</strong> use a conta fornecida pela escola.</li>
+          <li><strong>Diretoria:</strong> use o painel "Diretoria" abaixo para criar os códigos de cadastro.</li>
         </ul>
           </details>
 
@@ -117,6 +118,54 @@
             É professor(a)? <a href="professor.html" style="color: var(--color-primary-dark); font-weight:700;">Área do professor</a>
           </p>
           <p class="hint local-mode-link">Sem Supabase? <a href="index.html?modo=local">Testar perfil de turma neste aparelho</a>.</p>
+
+          <details class="director-panel" id="directorPanel">
+            <summary>Diretoria: criar código da escola</summary>
+            <div id="directorLogin">
+              <p class="hint">Somente contas da diretoria cadastradas pela escola podem criar códigos.</p>
+              <form id="directorLoginForm" autocomplete="on">
+                <div class="field">
+                  <label for="directorEmail">E-mail da diretoria</label>
+                  <input type="email" id="directorEmail" autocomplete="username" required />
+                </div>
+                <div class="field">
+                  <label for="directorPassword">Senha</label>
+                  <input type="password" id="directorPassword" autocomplete="current-password" required />
+                </div>
+                <p class="form-feedback" id="directorLoginError" role="alert" hidden></p>
+                <button type="submit" class="btn btn--primary btn--block">Entrar como diretoria</button>
+              </form>
+            </div>
+            <div id="directorCodes" hidden>
+              <p class="hint" id="directorWelcome"></p>
+              <form id="schoolCodeForm" class="teacher-code-form">
+                <div class="field">
+                  <label for="schoolCodeClass">Turma</label>
+                  <select id="schoolCodeClass" required>
+                    <option value="" disabled selected>Selecione a turma</option>
+                    <option value="1º ano">1º ano</option>
+                    <option value="2º ano">2º ano</option>
+                    <option value="3º ano">3º ano</option>
+                    <option value="4º ano">4º ano</option>
+                    <option value="5º ano">5º ano</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="schoolCodeUses">Cadastros permitidos</label>
+                  <input id="schoolCodeUses" type="number" min="1" max="500" value="30" required />
+                </div>
+                <div class="field">
+                  <label for="schoolCodeExpiry">Validade (opcional)</label>
+                  <input id="schoolCodeExpiry" type="date" />
+                </div>
+                <button type="submit" class="btn btn--primary">Gerar código</button>
+              </form>
+              <p id="schoolCodeFeedback" class="challenge-feedback" role="status" aria-live="polite"></p>
+              <div id="newSchoolCode" class="new-school-code" hidden></div>
+              <div id="schoolCodesList" class="teacher-code-list" aria-live="polite"></div>
+              <button type="button" class="btn btn--ghost" id="directorLogout">Sair da diretoria</button>
+            </div>
+          </details>
         </section>
       </div>
     </div>
@@ -134,9 +183,10 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabaseClient.js?v=2"></script>
-  <script src="js/app-state.js?v=19"></script>
-  <script src="js/nav.js?v=6"></script>
+  <script src="js/supabaseClient.js?v=3"></script>
+  <script src="js/app-state.js?v=20"></script>
+  <script src="js/nav.js?v=7"></script>
+  <script src="js/director-access-codes.js?v=1"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const form = document.getElementById('playerLoginForm');
@@ -192,7 +242,7 @@
           ? 'Modo local: escolha a turma e crie um perfil para testar o jogo neste aparelho.'
           : accountType === 'school'
           ? isRegistering
-            ? 'Peça ao professor o código da sua turma para criar um perfil escolar.'
+            ? 'Peça à diretoria o código da sua turma para criar um perfil escolar.'
             : 'Entre com seu nome, sua turma e seu PIN.'
           : 'Para entrar como visitante, informe seu nome e seu PIN.';
         loginSubmit.textContent = isRegistering
@@ -279,7 +329,7 @@
         if (!result.ok) {
           const message = result.code === 'PROFILE_NOT_FOUND'
             ? accountType === 'school'
-              ? 'Esse perfil ainda não existe neste dispositivo. Para o primeiro acesso, toque em Criar perfil e use o código da turma fornecido pelo professor.'
+              ? 'Esse perfil ainda não existe neste dispositivo. Para o primeiro acesso, toque em Criar perfil e use o código da turma fornecido pela diretoria.'
               : 'Esse perfil ainda não existe neste dispositivo. Toque em Criar perfil para começar.'
             : result.message || 'Não foi possível entrar no jogo.';
           showFeedback(message);

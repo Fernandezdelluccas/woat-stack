@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=28" />
+  <link rel="stylesheet" href="css/style.css?v=30" />
 </head>
 <body>
 
@@ -21,7 +21,7 @@
         <a href="ranking.html">Ranking</a>
       </nav>
       <div class="user-chip">
-        <span class="user-chip__avatar">👩‍🏫</span> Prof. João
+        <span class="user-chip__avatar">👩‍🏫</span> Professor(a)
       </div>
     </div>
   </header>
@@ -54,7 +54,7 @@
         <button type="button" id="cancelProfessorLogin" class="btn btn--ghost btn--block" style="margin-top:10px;">Cancelar e voltar</button>
         <p class="hint local-mode-link">Para testar sem Supabase, <a href="professor.html?modo=local">abra o painel local</a>. Ele não libera acesso remoto.</p>
 
-        <p class="hint" id="loginError" style="margin-top:16px; color: var(--color-danger-dark); display:none;">
+        <p class="hint" id="loginError" role="alert" aria-live="assertive" style="margin-top:16px; color: var(--color-danger-dark); display:none;">
           E-mail ou senha incorretos.
         </p>
       </div>
@@ -64,7 +64,7 @@
       <div class="page-head" style="max-width: 720px;">
         <span class="eyebrow">Painel do Professor</span>
         <h1>Turmas e missões</h1>
-        <p>Gere um código para novos alunos, publique uma missão para a turma e acompanhe o aprendizado.</p>
+        <p>Publique uma missão para a turma e acompanhe o aprendizado.</p>
         <div style="margin-top: 18px;">
           <button type="button" id="logoutProfessor" class="btn btn--ghost">Sair</button>
         </div>
@@ -73,71 +73,20 @@
       <section class="teacher-start-guide" aria-labelledby="teacherStartTitle">
         <h2 id="teacherStartTitle">Como começar</h2>
         <ol>
-          <li>Escolha a turma e gere um código de cadastro.</li>
+          <li>Peça à diretoria o código de cadastro da sua turma.</li>
           <li>Compartilhe o código apenas com os alunos dessa turma.</li>
           <li>Crie uma missão e peça aos alunos para abri-la em Matemática.</li>
         </ol>
       </section>
 
       <p class="local-mode-note" id="localTeacherNotice" hidden>
-        Modo local: crie um aluno em <a href="index.html?modo=local">perfil de turma local</a> e use o mesmo navegador para conferir as missões. Códigos escolares e relatórios reais dependem do Supabase.
+        Modo local: crie um aluno em <a href="index.html?modo=local">perfil de turma local</a> e use o mesmo navegador para conferir as missões. Relatórios reais dependem do Supabase.
       </p>
-
-      <section class="card teacher-codes-panel" id="teacherCodesPanel" aria-labelledby="teacherCodesTitle">
-        <div>
-          <span class="eyebrow">Acesso da turma</span>
-          <h2 id="teacherCodesTitle">Códigos de cadastro</h2>
-          <p>Gere códigos temporários para seus alunos. O código completo aparece apenas uma vez.</p>
-        </div>
-        <form id="schoolCodeForm" class="teacher-code-form">
-          <div class="field">
-            <label for="schoolCodeClass">Turma</label>
-            <select id="schoolCodeClass" required disabled>
-              <option value="">Carregando suas turmas...</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="schoolCodeUses">Cadastros permitidos</label>
-            <input id="schoolCodeUses" type="number" min="1" max="500" value="30" required />
-          </div>
-          <div class="field">
-            <label for="schoolCodeExpiry">Validade (opcional)</label>
-            <input id="schoolCodeExpiry" type="date" />
-          </div>
-          <button type="submit" class="btn btn--primary">Gerar código</button>
-        </form>
-        <p id="schoolCodeFeedback" class="challenge-feedback" role="status" aria-live="polite"></p>
-        <div id="newSchoolCode" class="new-school-code" hidden></div>
-        <div id="schoolCodesList" class="teacher-code-list" aria-live="polite"></div>
-      </section>
-
-      <div class="grid grid--narrow" style="margin-bottom: 28px;" hidden>
-        <div class="stat-card">
-          <div class="stat-card__label">Alunos ativos</div>
-          <div class="stat-card__value">28</div>
-          <div class="stat-card__delta stat-card__delta--up">▲ 4 esta semana</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card__label">Taxa de acerto média</div>
-          <div class="stat-card__value">78%</div>
-          <div class="stat-card__delta stat-card__delta--up">▲ 5% vs. semana passada</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card__label">Níveis concluídos</div>
-          <div class="stat-card__value">162</div>
-          <div class="stat-card__delta stat-card__delta--up">▲ 21 esta semana</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card__label">Tempo médio de uso</div>
-          <div class="stat-card__value">14min</div>
-          <div class="stat-card__delta stat-card__delta--down">▼ 2min vs. semana passada</div>
-        </div>
-      </div>
 
       <div class="card challenge-card">
         <span class="eyebrow">Sistema de desafios</span>
         <h3>Defina uma missão para a turma</h3>
-        <p class="hint">A missão aparece para os alunos da turma quando eles usam este mesmo aparelho. A sincronização entre aparelhos será conectada ao Supabase.</p>
+        <p class="hint">A missão publicada fica disponível aos alunos autenticados da turma.</p>
         <form id="challengeForm" class="challenge-form">
           <div class="field">
             <label for="challengeTitle">Nome do desafio</label>
@@ -151,23 +100,20 @@
               <option value="multiplicacao">Multiplicação</option>
               <option value="divisao">Divisão</option>
               <option value="formas">Formas geométricas</option>
+              <option value="fracoes">Frações</option>
             </select>
           </div>
           <div class="field">
             <label for="challengeClass">Turma</label>
-            <select id="challengeClass" required>
-              <option value="1º ano">1º ano</option>
-              <option value="2º ano">2º ano</option>
-              <option value="3º ano">3º ano</option>
-              <option value="4º ano" selected>4º ano</option>
-              <option value="5º ano">5º ano</option>
+            <select id="challengeClass" required disabled>
+              <option value="">Carregando turmas autorizadas...</option>
             </select>
           </div>
           <div class="field">
             <label for="challengeTarget">Meta de acertos por etapa</label>
             <input id="challengeTarget" type="number" min="1" max="4" value="2" required />
           </div>
-          <button class="btn btn--primary" type="submit">Criar desafio</button>
+          <button class="btn btn--primary" id="challengeSubmit" type="submit" disabled>Criar desafio</button>
         </form>
         <p class="challenge-feedback" id="challengeFeedback" aria-live="polite"></p>
         <div class="challenge-list" id="challengeList"></div>
@@ -176,6 +122,26 @@
       <section class="teacher-report-empty teacher-report-panel" id="teacherReportPanel" aria-labelledby="teacherReportTitle" hidden>
         <h2 id="teacherReportTitle">Desempenho da turma</h2>
         <p id="teacherReportFeedback" class="hint" role="status" aria-live="polite">Carregando dados da sua turma...</p>
+        <div class="teacher-report-toolbar">
+          <div class="field">
+            <label for="reportClassFilter">Turma</label>
+            <select id="reportClassFilter"><option value="">Todas as turmas autorizadas</option></select>
+          </div>
+          <div class="field">
+            <label for="reportGameFilter">Minijogo</label>
+            <select id="reportGameFilter">
+              <option value="">Todos os minijogos</option>
+              <option value="adicao">Adição</option>
+              <option value="subtracao">Subtração</option>
+              <option value="multiplicacao">Multiplicação</option>
+              <option value="divisao">Divisão</option>
+              <option value="formas">Formas geométricas</option>
+              <option value="fracoes">Frações</option>
+            </select>
+          </div>
+          <button type="button" class="btn btn--ghost" id="refreshTeacherReport" aria-label="Atualizar relatório" title="Atualizar relatório" disabled>↻ Atualizar</button>
+          <button type="button" class="btn btn--primary" id="exportTeacherReport" aria-label="Exportar relatório CSV" title="Exportar relatório CSV" disabled>⇩ Exportar CSV</button>
+        </div>
         <div class="teacher-report-stats">
           <p>Alunos: <strong id="reportStudentCount">0</strong></p>
           <p>Partidas: <strong id="reportSessionCount">0</strong></p>
@@ -193,133 +159,6 @@
         </div>
       </section>
 
-      <div class="grid" style="grid-template-columns: 2fr 1fr; margin-bottom: 28px;" hidden>
-        <div class="card">
-          <h3>Acertos x Erros por minijogo</h3>
-          <p class="hint mt-0">Dados consolidados dos últimos 7 dias.</p>
-
-          <div class="bar-chart">
-            <div class="bar-chart__col">
-              <div class="bar-chart__stack">
-                <div class="bar-chart__seg bar-chart__seg--wrong" style="height: 18%;"></div>
-                <div class="bar-chart__seg bar-chart__seg--correct" style="height: 82%;"></div>
-              </div>
-              <span class="bar-chart__label">Adição</span>
-            </div>
-            <div class="bar-chart__col">
-              <div class="bar-chart__stack">
-                <div class="bar-chart__seg bar-chart__seg--wrong" style="height: 30%;"></div>
-                <div class="bar-chart__seg bar-chart__seg--correct" style="height: 70%;"></div>
-              </div>
-              <span class="bar-chart__label">Subtração</span>
-            </div>
-            <div class="bar-chart__col">
-              <div class="bar-chart__stack">
-                <div class="bar-chart__seg bar-chart__seg--wrong" style="height: 42%;"></div>
-                <div class="bar-chart__seg bar-chart__seg--correct" style="height: 58%;"></div>
-              </div>
-              <span class="bar-chart__label">Multiplicação</span>
-            </div>
-            <div class="bar-chart__col">
-              <div class="bar-chart__stack">
-                <div class="bar-chart__seg bar-chart__seg--wrong" style="height: 47%;"></div>
-                <div class="bar-chart__seg bar-chart__seg--correct" style="height: 53%;"></div>
-              </div>
-              <span class="bar-chart__label">Divisão</span>
-            </div>
-            <div class="bar-chart__col">
-              <div class="bar-chart__stack">
-                <div class="bar-chart__seg bar-chart__seg--wrong" style="height: 12%;"></div>
-                <div class="bar-chart__seg bar-chart__seg--correct" style="height: 88%;"></div>
-              </div>
-              <span class="bar-chart__label">Formas</span>
-            </div>
-          </div>
-
-          <div class="legend" style="margin-top: 14px;">
-            <span><span class="legend__dot" style="background: var(--color-accent);"></span>Acertos</span>
-            <span><span class="legend__dot" style="background: var(--color-danger);"></span>Erros</span>
-          </div>
-        </div>
-
-        <div class="card text-center">
-          <h3>Taxa geral de acerto</h3>
-          <div class="donut" style="--pct: 78; margin: 20px auto;">
-            <div class="donut__hole">
-              <strong>78%</strong>
-              <span>acertos</span>
-            </div>
-          </div>
-          <div class="legend flex-center" style="margin-top: 10px;">
-            <span><span class="legend__dot" style="background: var(--color-accent);"></span>Acertos</span>
-            <span><span class="legend__dot" style="background: var(--color-danger);"></span>Erros</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="card--flat" style="margin-bottom: 12px;" hidden>
-        <h3 class="mt-0">Desempenho por aluno</h3>
-      </div>
-      <div class="table-wrap" hidden>
-        <table>
-          <thead>
-            <tr>
-              <th>Aluno</th>
-              <th>Turma</th>
-              <th>Níveis concluídos</th>
-              <th>Acertos</th>
-              <th>Erros</th>
-              <th>Tempo de uso</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="player-cell"><span class="player-cell__avatar">🦄</span> Sofia</td>
-              <td>4º ano</td>
-              <td>12</td>
-              <td><span class="tag tag--correct">54</span></td>
-              <td><span class="tag tag--wrong">6</span></td>
-              <td>22min</td>
-            </tr>
-            <tr>
-              <td class="player-cell"><span class="player-cell__avatar">🤖</span> Pedro</td>
-              <td>4º ano</td>
-              <td>11</td>
-              <td><span class="tag tag--correct">49</span></td>
-              <td><span class="tag tag--wrong">9</span></td>
-              <td>19min</td>
-            </tr>
-            <tr>
-              <td class="player-cell"><span class="player-cell__avatar">🦊</span> Ana</td>
-              <td>3º ano</td>
-              <td>10</td>
-              <td><span class="tag tag--correct">45</span></td>
-              <td><span class="tag tag--wrong">7</span></td>
-              <td>17min</td>
-            </tr>
-            <tr>
-              <td class="player-cell"><span class="player-cell__avatar">🦕</span> Lucas</td>
-              <td>3º ano</td>
-              <td>8</td>
-              <td><span class="tag tag--correct">38</span></td>
-              <td><span class="tag tag--wrong">11</span></td>
-              <td>15min</td>
-            </tr>
-            <tr>
-              <td class="player-cell"><span class="player-cell__avatar">🐱</span> Beatriz</td>
-              <td>5º ano</td>
-              <td>7</td>
-              <td><span class="tag tag--correct">33</span></td>
-              <td><span class="tag tag--wrong">8</span></td>
-              <td>12min</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <p class="hint text-center" style="margin-top:16px;" hidden>
-        Dados de exemplo — este painel será conectado ao banco PostgreSQL (Supabase) para exibir dados reais.
-      </p>
     </div>
   </main>
 
@@ -335,12 +174,11 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabaseClient.js?v=2"></script>
-  <script src="js/nav.js?v=6"></script>
-  <script src="js/app-state.js?v=19"></script>
-  <script src="js/professor-auth.js?v=8"></script>
-  <script src="js/teacher-access-codes.js?v=4"></script>
-  <script src="js/professor-dashboard.js?v=3"></script>
+  <script src="js/supabaseClient.js?v=3"></script>
+  <script src="js/nav.js?v=7"></script>
+  <script src="js/app-state.js?v=20"></script>
+  <script src="js/professor-auth.js?v=9"></script>
+  <script src="js/professor-dashboard.js?v=5"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const form = document.getElementById('challengeForm');
@@ -350,7 +188,7 @@
       const localMode = window.location.search === '?modo=local';
       const gameLabels = {
         adicao: 'Adição', subtracao: 'Subtração', multiplicacao: 'Multiplicação',
-        divisao: 'Divisão', formas: 'Formas geométricas',
+        divisao: 'Divisão', formas: 'Formas geométricas', fracoes: 'Frações',
       };
       const renderChallenges = () => {
         list.replaceChildren();
@@ -376,6 +214,11 @@
       };
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
+        const classSelect = document.getElementById('challengeClass');
+        if (classSelect.disabled || !classSelect.value) {
+          feedback.textContent = 'Selecione uma turma vinculada à sua conta antes de criar a missão.';
+          return;
+        }
         const result = window.GeniosApp.createChallenge({
           title: document.getElementById('challengeTitle').value,
           game: document.getElementById('challengeGame').value,
@@ -390,10 +233,14 @@
         if (localMode) {
           feedback.textContent = `Missão criada para ${result.challenge.turma} neste navegador.`;
         } else {
-          const published = await window.GeniosApp.publishClassChallenge(result.challenge);
-          feedback.textContent = published.ok
-            ? `Missão publicada para ${result.challenge.turma}. Os alunos autorizados já podem encontrá-la.`
-            : `${published.message} A missão continua disponível neste navegador.`;
+          try {
+            const published = await window.GeniosApp.publishClassChallenge(result.challenge);
+            feedback.textContent = published.ok
+              ? `Missão publicada para ${result.challenge.turma}. Os alunos autorizados já podem encontrá-la.`
+              : `${published.message} A missão continua disponível neste navegador.`;
+          } catch (error) {
+            feedback.textContent = 'Não foi possível publicar a missão agora. Confira a conexão e tente novamente.';
+          }
         }
         if (result.ok) { form.reset(); renderChallenges(); }
       });

@@ -59,17 +59,17 @@
   }
 
   async function hasTeacherAccess(userId) {
-    const { data, error } = await window.supabaseClient
-      .from('teacher_accounts')
-      .select('user_id')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Erro ao verificar acesso de professor:', error.message);
-      return false;
+    try {
+      const { data, error } = await window.supabaseClient
+        .from('teacher_accounts')
+        .select('user_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (error) return { ok: false, allowed: false };
+      return { ok: true, allowed: Boolean(data?.user_id) };
+    } catch (error) {
+      return { ok: false, allowed: false };
     }
-    return Boolean(data?.user_id);
   }
 
   function showError(message) {
@@ -86,7 +86,7 @@
     const currentAttempt = ++authAttempt;
 
     const email = emailInput.value.trim();
-    const password = passwordInput.value.trim();
+    const password = passwordInput.value;
     if (!window.supabaseClient) {
       showError('Autenticação indisponível. Peça ao administrador para configurar o Supabase.');
       return;
@@ -95,16 +95,30 @@
     const { data, error } = await window.supabaseClient.auth.signInWithPassword({ email, password });
     if (currentAttempt !== authAttempt) return;
     if (error || !data.user) {
-      showError('E-mail ou senha incorretos.');
+      const errorText = String(error?.message || '').toLowerCase();
+      const invalidCredentials = error?.status === 400
+        || error?.status === 401
+        || error?.code === 'invalid_credentials'
+        || errorText.includes('invalid login credentials')
+        || errorText.includes('invalid credentials');
+      showError(invalidCredentials
+        ? 'E-mail ou senha incorretos.'
+        : 'Não foi possível conectar ao serviço de autenticação. Verifique a conexão e tente novamente.');
       return;
     }
 
-    const authorizedTeacher = await hasTeacherAccess(data.user.id);
+    const access = await hasTeacherAccess(data.user.id);
     if (currentAttempt !== authAttempt) {
       await window.supabaseClient.auth.signOut();
       return;
     }
-    if (!authorizedTeacher) {
+    if (!access.ok) {
+      await window.supabaseClient.auth.signOut();
+      setLoggedIn(false);
+      showError('Não foi possível verificar sua autorização. Tente novamente ou peça ao administrador para conferir o Supabase.');
+      return;
+    }
+    if (!access.allowed) {
       await window.supabaseClient.auth.signOut();
       setLoggedIn(false);
       showError('Esta conta não está autorizada para acessar o painel do professor.');
@@ -136,7 +150,6 @@
     if (localDemo) {
       setLoggedIn(true);
       document.getElementById('localTeacherNotice').hidden = false;
-      document.getElementById('teacherCodesPanel').hidden = true;
       return;
     }
 
@@ -146,19 +159,38 @@
     }
 
     const currentAttempt = authAttempt;
-    const { data, error } = await window.supabaseClient.auth.getSession();
+    let data;
+    let error;
+    try {
+      ({ data, error } = await window.supabaseClient.auth.getSession());
+    } catch (sessionError) {
+      setLoggedIn(false);
+      showError('Não foi possível restaurar a sessão. Atualize a página e tente novamente.');
+      return;
+    }
     if (currentAttempt !== authAttempt) return;
     const user = data?.session?.user;
+    if (error) {
+      setLoggedIn(false);
+      showError('Não foi possível restaurar a sessão. Atualize a página e tente novamente.');
+      return;
+    }
     if (!user) {
       setLoggedIn(false);
       return;
     }
 
-    const authorizedTeacher = await hasTeacherAccess(user.id);
+    const access = await hasTeacherAccess(user.id);
     if (currentAttempt !== authAttempt) return;
-    if (error || !authorizedTeacher) {
+    if (!access.ok) {
+      setLoggedIn(false);
+      showError('Não foi possível verificar sua autorização. Tente novamente ou peça ao administrador para conferir o Supabase.');
+      return;
+    }
+    if (!access.allowed) {
       await window.supabaseClient.auth.signOut();
       setLoggedIn(false);
+      showError('Esta conta não está autorizada para acessar o painel do professor.');
       return;
     }
 

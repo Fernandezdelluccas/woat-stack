@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=28" />
+  <link rel="stylesheet" href="css/style.css?v=29" />
 </head>
 <body>
 
@@ -74,12 +74,11 @@
           <p class="tile__desc">Reconheça figuras do dia a dia.</p>
         </a>
 
-        <div class="tile tile--disabled">
-          <span class="badge">Em breve</span>
+        <a href="jogo.html?game=fracoes" class="tile">
           <div class="tile__icon" style="background: rgba(253,203,110,0.24); color: #7A4A00;">🧩</div>
           <h3 class="tile__title">Frações</h3>
-          <p class="tile__desc">Pizza, chocolate e frações!</p>
-        </div>
+          <p class="tile__desc">Descubra as partes de um todo.</p>
+        </a>
       </div>
     </div>
   </main>
@@ -96,15 +95,18 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabaseClient.js?v=2"></script>
-  <script src="js/app-state.js?v=19"></script>
-  <script src="js/nav.js?v=6"></script>
+  <script src="js/supabaseClient.js?v=3"></script>
+  <script src="js/app-state.js?v=20"></script>
+  <script src="js/nav.js?v=7"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       const player = window.GeniosApp?.getPlayer?.();
       const userChip = document.querySelector('.user-chip');
       if (userChip && player) {
-        userChip.innerHTML = `<span class="user-chip__avatar">${player.avatar || '🦊'}</span> ${player.nome}`;
+        const avatar = document.createElement('span');
+        avatar.className = 'user-chip__avatar';
+        avatar.textContent = player.avatar || '🦊';
+        userChip.replaceChildren(avatar, document.createTextNode(` ${player.nome}`));
       }
 
       const challengeSection = document.getElementById('classChallengesSection');
@@ -113,7 +115,7 @@
         challengeSection.hidden = false;
         const gameLabels = {
           adicao: 'Adição', subtracao: 'Subtração', multiplicacao: 'Multiplicação',
-          divisao: 'Divisão', formas: 'Formas geométricas',
+          divisao: 'Divisão', formas: 'Formas geométricas', fracoes: 'Frações',
         };
         const localChallenges = window.GeniosApp.getChallenges(player.turma);
         const remoteResult = player.localOnly

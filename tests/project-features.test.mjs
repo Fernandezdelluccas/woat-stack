@@ -260,7 +260,7 @@ test('login explica perfil inexistente separadamente de PIN incorreto', async ()
 
 test('entrada usa versão nova do módulo de login para descartar cache antigo', () => {
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.ok(html.includes('js/app-state.js?v=19'));
+  assert.ok(html.includes('js/app-state.js?v=20'));
 });
 
 test('cadastro escolar falha fechado sem Supabase e não aceita código legado', async () => {
@@ -434,6 +434,40 @@ test('cada operação gera exemplos práticos e contextos variados', () => {
   }
 });
 
+test('Frações gera quatro alternativas próprias e fica disponível em jogo e missões', () => {
+  const questions = buildQuestions('fracoes', 10);
+  for (const question of questions) {
+    assert.equal(question.options.length, 4);
+    assert.equal(new Set(question.options).size, 4);
+    assert.ok(question.options.includes(question.correctAnswer));
+    const [numerator, denominator] = question.correctAnswer.split('/').map(Number);
+    assert.ok(numerator > 0 && numerator < denominator);
+    assert.ok(denominator >= 5 && denominator <= 9);
+  }
+  const math = fs.readFileSync(new URL('../matematica.html', import.meta.url), 'utf8');
+  const teacher = fs.readFileSync(new URL('../professor.html', import.meta.url), 'utf8');
+  const appState = fs.readFileSync(new URL('../js/app-state.js', import.meta.url), 'utf8');
+  const schema = fs.readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8');
+  assert.ok(math.includes('jogo.html?game=fracoes'));
+  assert.ok(teacher.includes('<option value="fracoes">Frações</option>'));
+  assert.ok(appState.includes("'formas', 'fracoes'"));
+  assert.ok(schema.includes("'formas', 'fracoes'"));
+});
+
+test('scripts inline de todas as páginas compilam e perfis não entram em innerHTML', () => {
+  const pages = fs.readdirSync(new URL('..', import.meta.url)).filter((file) => file.endsWith('.html'));
+  for (const page of pages) {
+    const html = fs.readFileSync(new URL(`../${page}`, import.meta.url), 'utf8');
+    for (const [, script] of html.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/g)) {
+      assert.doesNotThrow(() => new Function(script), `${page} contém script inline inválido`);
+    }
+  }
+  for (const [file, selector] of [['jogo.html', 'userChip'], ['matematica.html', 'userChip'], ['materias.html', 'userChip'], ['js/nav.js', 'chip']]) {
+    const source = fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+    assert.ok(!source.includes(`${selector}.innerHTML`), `${file} não deve interpretar nome de perfil como HTML`);
+  }
+});
+
 test('personalização não oferece roupas e mantém conquistas ampliadas', () => {
   const app = createApp();
   assert.equal(app.characterCatalog.some((item) => item.category === 'roupa'), false);
@@ -506,16 +540,20 @@ test('login do professor exige Auth e papel docente, e retorna à página intern
   };
   let redirect = '';
   let teacherAllowed = true;
+  let teacherLookupFails = false;
+  let loginFailure = null;
   let signOutCount = 0;
   const window = {
     location: { origin: 'https://jogo.example', pathname: '/professor.html', replace: (path) => { redirect = path; } },
     supabaseClient: {
       auth: {
         getSession: async () => ({ data: { session: null }, error: null }),
-        signInWithPassword: async ({ email, password }) => ({
+        signInWithPassword: async ({ email, password }) => loginFailure
+          ? { data: { user: null }, error: loginFailure }
+          : ({
           data: email === 'docente@escola.test' && password === 'segredo' ? { user: { id: 'teacher-1' } } : { user: null },
           error: email === 'docente@escola.test' && password === 'segredo' ? null : { message: 'invalid credentials' },
-        }),
+          }),
         signOut: async () => { signOutCount += 1; return { error: null }; },
       },
       from(table) {
@@ -523,7 +561,10 @@ test('login do professor exige Auth e papel docente, e retorna à página intern
         const query = {
           select() { return query; },
           eq() { return query; },
-          maybeSingle: async () => ({ data: teacherAllowed ? { user_id: 'teacher-1' } : null, error: null }),
+          maybeSingle: async () => ({
+            data: teacherAllowed && !teacherLookupFails ? { user_id: 'teacher-1' } : null,
+            error: teacherLookupFails ? { message: 'database unavailable' } : null,
+          }),
         };
         return query;
       },
@@ -562,6 +603,15 @@ test('login do professor exige Auth e papel docente, e retorna à página intern
   assert.equal(elements.dashboardSection.style.display, 'none');
   assert.equal(elements.loginError.textContent, 'Esta conta não está autorizada para acessar o painel do professor.');
   assert.equal(signOutCount, 2);
+
+  teacherLookupFails = true;
+  await elements.professorLoginForm.handlers.submit({ preventDefault() {} });
+  assert.match(elements.loginError.textContent, /Não foi possível verificar sua autorização/);
+  assert.equal(signOutCount, 3);
+
+  loginFailure = { status: 503, message: 'Auth service unavailable' };
+  await elements.professorLoginForm.handlers.submit({ preventDefault() {} });
+  assert.match(elements.loginError.textContent, /Não foi possível conectar ao serviço de autenticação/);
 });
 
 test('painel docente local abre sem Auth remoto e sai para cadastro local de aluno', async () => {
@@ -570,7 +620,7 @@ test('painel docente local abre sem Auth remoto e sai para cadastro local de alu
     addEventListener(type, handler) { this.handlers[type] = handler; }
     reset() {}
   }
-  const ids = ['loginSection', 'dashboardSection', 'professorLoginForm', 'professorEmail', 'professorPassword', 'loginError', 'logoutProfessor', 'cancelProfessorLogin', 'teacherNavigation', 'localTeacherNotice', 'teacherCodesPanel'];
+  const ids = ['loginSection', 'dashboardSection', 'professorLoginForm', 'professorEmail', 'professorPassword', 'loginError', 'logoutProfessor', 'cancelProfessorLogin', 'teacherNavigation', 'localTeacherNotice'];
   const elements = Object.fromEntries(ids.map((id) => [id, new Element()]));
   let redirect = '';
   let remoteCalls = 0;
@@ -598,12 +648,90 @@ test('painel docente local abre sem Auth remoto e sai para cadastro local de alu
   assert.equal(elements.loginSection.style.display, 'none');
   assert.equal(elements.dashboardSection.style.display, 'block');
   assert.equal(elements.localTeacherNotice.hidden, false);
-  assert.equal(elements.teacherCodesPanel.hidden, true);
   assert.equal(remoteCalls, 0);
   assert.equal(professorLoginEvents, 0);
   await elements.logoutProfessor.handlers.click();
   assert.equal(redirect, 'index.html?modo=local');
   assert.equal(remoteCalls, 0);
+});
+
+test('relatório docente filtra turmas e minijogos, atualiza métricas e exporta CSV', async () => {
+  class Element {
+    constructor(text = '', value = '') { this.textContent = text; this.value = value; this.children = []; this.handlers = {}; this.hidden = false; this.disabled = false; }
+    addEventListener(type, handler) { this.handlers[type] = handler; }
+    append(...items) { this.children.push(...items); }
+    appendChild(item) { this.children.push(item); }
+    add(item) { this.children.push(item); }
+    replaceChildren(...items) { this.children = items; }
+    click() { this.handlers.click?.(); this.wasClicked = true; }
+  }
+  const ids = ['teacherReportPanel', 'teacherReportFeedback', 'teacherReportRows', 'teacherQuestionReports', 'reportStudentCount', 'reportSessionCount', 'reportAccuracy', 'reportClassFilter', 'reportGameFilter', 'refreshTeacherReport', 'exportTeacherReport', 'challengeClass', 'challengeSubmit', 'challengeFeedback'];
+  const elements = Object.fromEntries(ids.map((id) => [id, new Element()]));
+  elements.reportClassFilter.value = '';
+  elements.reportGameFilter.value = '';
+  const classes = [{ turma: '4º ano' }, { turma: '5º ano' }];
+  const students = [{ id: 'p1', nome: 'Ana', turma: '4º ano' }, { id: 'p2', nome: '=Bia', turma: '5º ano' }];
+  const sessions = [
+    { profile_id: 'p1', game_key: 'adicao', score: 12, correct_answers: 3, wrong_answers: 1, elapsed_seconds: 60 },
+    { profile_id: 'p2', game_key: 'fracoes', score: 20, correct_answers: 2, wrong_answers: 0, elapsed_seconds: 90 },
+  ];
+  const states = [];
+  const reportCalls = {};
+  const resolved = { teacher_classes: classes, profiles: students, profile_state: states };
+  const client = {
+    auth: { getUser: async () => ({ data: { user: { id: 'teacher-1' } }, error: null }) },
+    from(table) {
+      reportCalls[table] = (reportCalls[table] || 0) + 1;
+      const query = {
+        select() { return this; },
+        eq() { return this; },
+        in() { return this; },
+        order() { return this; },
+        range: async () => ({ data: sessions, error: null }),
+        then(resolve, reject) { return Promise.resolve({ data: resolved[table] || [], error: null }).then(resolve, reject); },
+      };
+      return query;
+    },
+  };
+  const listeners = {};
+  let exportedBlob;
+  let exportedLink;
+  const document = {
+    getElementById: (id) => elements[id] || null,
+    createElement: (tag) => {
+      const element = new Element();
+      element.tagName = tag;
+      if (tag === 'a') exportedLink = element;
+      return element;
+    },
+    addEventListener(type, handler) { (listeners[type] ||= []).push(handler); },
+  };
+  const window = { location: { search: '' }, supabaseClient: client };
+  const urlApi = { createObjectURL: (blob) => { exportedBlob = blob; return 'blob:report'; }, revokeObjectURL() {} };
+  const Option = class extends Element { constructor(text, value) { super(text, value); } };
+  const source = fs.readFileSync(new URL('../js/professor-dashboard.js', import.meta.url), 'utf8');
+  vm.runInNewContext(source, { window, document, localStorage: { getItem: () => null }, Option, URL: urlApi, Blob, Date, Map, Set, String, Number });
+
+  await Promise.all(listeners['professor:login'].map((handler) => handler({ detail: { userId: 'teacher-1' } })));
+  assert.equal(elements.reportStudentCount.textContent, '2');
+  assert.equal(elements.reportSessionCount.textContent, '2');
+  assert.equal(elements.reportAccuracy.textContent, '83%');
+  assert.equal(elements.challengeClass.disabled, false);
+  assert.deepEqual(elements.challengeClass.children.map((option) => option.value), ['', '4º ano', '5º ano']);
+
+  elements.reportClassFilter.value = '5º ano';
+  await elements.reportClassFilter.handlers.change();
+  elements.reportGameFilter.value = 'fracoes';
+  await elements.reportGameFilter.handlers.change();
+  assert.equal(elements.reportStudentCount.textContent, '1');
+  assert.equal(elements.reportSessionCount.textContent, '1');
+  assert.equal(elements.teacherReportRows.children[0].children[0].textContent, '=Bia');
+
+  elements.exportTeacherReport.handlers.click();
+  assert.equal(exportedLink.download.startsWith('relatorio-turma-'), true);
+  assert.match(await exportedBlob.text(), /"'=Bia";"5º ano";"Frações"/);
+  await elements.refreshTeacherReport.handlers.click();
+  assert.equal(reportCalls.teacher_classes, 3);
 });
 
 test('login infantil exige código apenas ao cadastrar perfil escolar e nunca mostra e-mail', () => {
@@ -683,6 +811,13 @@ test('códigos escolares e tabelas de ranking têm proteção server-side no sch
   ]) {
     assert.ok(schema.toLowerCase().includes(marker.toLowerCase()), `proteção ausente: ${marker}`);
   }
+  const rankingFunction = schema.match(/function public\.get_class_game_ranking\(p_turma text\)[\s\S]*?\$function\$;/)?.[0] || '';
+  assert.ok(rankingFunction.includes('profiles.account_type'));
+  assert.ok(!rankingFunction.match(/\band\s+account_type\s*=/i));
+  assert.ok(schema.includes('create table if not exists school_directors'));
+  assert.ok(schema.includes('directors_read_school_access_codes'));
+  assert.ok(schema.includes('public.school_directors'));
+  assert.ok(schema.includes("'formas', 'fracoes'"));
 });
 
 test('dados de jogo e perfis ficam negados por padrão até definir políticas por usuário', () => {
@@ -707,8 +842,8 @@ test('dados de jogo e perfis ficam negados por padrão até definir políticas p
 test('telas com sincronização carregam o cliente Supabase antes do estado da aplicação', () => {
   for (const file of ['index.html', 'jogo.html', 'matematica.html', 'materias.html', 'professor.html', 'ranking.html']) {
     const html = fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
-    const clientIndex = html.indexOf('js/supabaseClient.js?v=2');
-    const stateIndex = html.indexOf('js/app-state.js?v=19');
+    const clientIndex = html.indexOf('js/supabaseClient.js?v=3');
+    const stateIndex = html.indexOf('js/app-state.js?v=20');
     assert.ok(clientIndex >= 0, `${file}: cliente Supabase ausente`);
     assert.ok(stateIndex > clientIndex, `${file}: app-state precisa carregar depois do cliente`);
   }
@@ -920,4 +1055,106 @@ test('créditos aparecem em todos os rodapés com a equipe e a faculdade', () =>
     assert.ok(html.includes('Pedro Lucas, Vitor, Murillo, Marcelo, Guilherme, Mickael e Helio'), `${file}: equipe ausente`);
     assert.ok(html.includes('<strong>Faculdade:</strong> Cruzeiro do Sul'), `${file}: faculdade ausente`);
   }
+});
+
+test('criação de código escolar fica na tela inicial e só a diretoria pode usá-la', () => {
+  const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const professor = fs.readFileSync(new URL('../professor.html', import.meta.url), 'utf8');
+  const schema = fs.readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8');
+  for (const id of ['directorPanel', 'directorLoginForm', 'schoolCodeForm', 'schoolCodeClass', 'newSchoolCode']) {
+    assert.ok(index.includes(`id="${id}"`), `tela inicial sem ${id}`);
+    assert.ok(!professor.includes(`id="${id}"`), `painel do professor não deve ter ${id}`);
+  }
+  assert.ok(index.includes('js/director-access-codes.js'));
+  assert.ok(index.includes('Peça o código à diretoria'));
+  assert.ok(!professor.includes('teacher-access-codes'));
+  assert.equal(fs.existsSync(new URL('../js/teacher-access-codes.js', import.meta.url)), false);
+
+  const createFunction = schema.match(/function public\.create_school_access_code[\s\S]*?\$function\$;/)[0];
+  const revokeFunction = schema.match(/function public\.revoke_school_access_code[\s\S]*?\$function\$;/)[0];
+  assert.ok(createFunction.includes('public.school_directors'));
+  assert.ok(!createFunction.includes('teacher_classes') && !createFunction.includes('teacher_accounts'));
+  assert.ok(revokeFunction.includes('public.school_directors'));
+  assert.ok(fs.readFileSync(new URL('../js/director-access-codes.js', import.meta.url), 'utf8').includes('Aplique o schema atualizado do Supabase'));
+  assert.ok(!revokeFunction.includes('teacher_classes'));
+  assert.ok(!schema.includes('teachers_read_own_access_codes on school_access_codes\n  for select'));
+});
+
+test('painel da diretoria rejeita conta sem papel e cria código com sessão isolada', async () => {
+  class Element {
+    constructor() { this.children = []; this.handlers = {}; this.hidden = false; this.value = ''; this.textContent = ''; this.className = ''; this.classList = { toggle() {} }; }
+    addEventListener(type, handler) { this.handlers[type] = handler; }
+    append(...nodes) { this.children.push(...nodes); }
+    appendChild(node) { this.children.push(node); }
+    replaceChildren(...nodes) { this.children = nodes; }
+    reset() {}
+  }
+  const ids = ['directorPanel', 'directorLoginForm', 'directorEmail', 'directorPassword', 'directorLoginError', 'directorLogin', 'directorCodes', 'directorWelcome', 'directorLogout', 'schoolCodeForm', 'schoolCodeClass', 'schoolCodeUses', 'schoolCodeExpiry', 'schoolCodeFeedback', 'newSchoolCode', 'schoolCodesList'];
+  const elements = Object.fromEntries(ids.map((id) => [id, new Element()]));
+  elements.directorCodes.hidden = true;
+  const rpcCalls = [];
+  let signOuts = 0;
+  const directors = new Set(['diretor-1']);
+  const createClient = () => ({
+    auth: {
+      signInWithPassword: async ({ email }) => ({ data: { user: { id: email.startsWith('diretor') ? 'diretor-1' : 'professor-1' } }, error: null }),
+      signOut: async () => { signOuts += 1; },
+    },
+    from: () => {
+      const query = { userId: null };
+      query.select = () => query;
+      query.eq = (_column, value) => { query.userId = value; return query; };
+      query.order = () => query;
+      query.limit = async () => ({ data: [], error: null });
+      query.maybeSingle = async () => ({ data: directors.has(query.userId) ? { display_name: 'Maria' } : null, error: null });
+      return query;
+    },
+    rpc: async (name, args) => { rpcCalls.push({ name, args }); return { data: true, error: null }; },
+  });
+  const window = {
+    location: { search: '' },
+    crypto: globalThis.crypto,
+    createEphemeralSupabaseClient: createClient,
+    addEventListener() {},
+    supabaseClient: new Proxy({}, { get() { throw new Error('a sessão principal não pode ser usada'); } }),
+  };
+  const document = { getElementById: (id) => elements[id] || null, createElement: () => new Element() };
+  const source = fs.readFileSync(new URL('../js/director-access-codes.js', import.meta.url), 'utf8');
+  vm.runInNewContext(source, { window, document, URLSearchParams, TextEncoder, Uint8Array, Date, Number, navigator: {} });
+
+  elements.directorEmail.value = 'professor@escola.com';
+  elements.directorPassword.value = 'segredo';
+  await elements.directorLoginForm.handlers.submit({ preventDefault() {} });
+  assert.equal(elements.directorCodes.hidden, true);
+  assert.equal(elements.directorLoginError.hidden, false);
+  assert.equal(signOuts, 1);
+
+  elements.directorEmail.value = 'diretor@escola.com';
+  await elements.directorLoginForm.handlers.submit({ preventDefault() {} });
+  assert.equal(elements.directorCodes.hidden, false);
+  assert.equal(elements.directorLogin.hidden, true);
+  assert.match(elements.directorWelcome.textContent, /Maria/);
+
+  elements.schoolCodeClass.value = '4º ano';
+  elements.schoolCodeUses.value = '25';
+  await elements.schoolCodeForm.handlers.submit({ preventDefault() {} });
+  assert.equal(rpcCalls.length, 1);
+  assert.equal(rpcCalls[0].name, 'create_school_access_code');
+  assert.match(rpcCalls[0].args.p_code_hash, /^[a-f0-9]{64}$/);
+  assert.equal(rpcCalls[0].args.p_turma, '4º ano');
+  assert.equal(rpcCalls[0].args.p_max_uses, 25);
+  assert.equal(elements.newSchoolCode.hidden, false);
+  assert.match(elements.newSchoolCode.children[1].textContent, /^TURMA-[A-F0-9]{24}$/);
+
+  await elements.directorLogout.handlers.click();
+  assert.equal(elements.directorCodes.hidden, true);
+  assert.equal(signOuts, 2);
+});
+
+test('painel da diretoria some no modo local sem Supabase', () => {
+  const panel = { hidden: false };
+  const document = { getElementById: (id) => (id === 'directorPanel' ? panel : null) };
+  const source = fs.readFileSync(new URL('../js/director-access-codes.js', import.meta.url), 'utf8');
+  vm.runInNewContext(source, { window: { location: { search: '?modo=local' } }, document, URLSearchParams });
+  assert.equal(panel.hidden, true);
 });

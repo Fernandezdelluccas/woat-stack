@@ -1,4 +1,4 @@
-import { buildQuestions, getGameDefinition, formatAnswer } from './game.mjs?v=11';
+import { buildQuestions, getGameDefinition, formatAnswer } from './game.mjs?v=12';
 
 const gameKey = new URLSearchParams(window.location.search).get('game') || 'adicao';
 const searchParams = new URLSearchParams(window.location.search);

@@ -106,6 +106,30 @@ export const GAME_TYPES = {
       });
     },
   },
+  fracoes: {
+    label: 'Frações',
+    description: 'Descobrir partes iguais de um todo.',
+    generator: (contextIndex = 0) => {
+      const context = CONTEXTS.fracoes[contextIndex % CONTEXTS.fracoes.length];
+      const denominator = randomInt(5, 9);
+      const numerator = randomInt(1, denominator - 1);
+      const correct = `${numerator}/${denominator}`;
+      const numerators = new Set([numerator]);
+      for (let offset = 1; numerators.size < 4; offset += 1) {
+        numerators.add(((numerator + offset - 1) % (denominator - 1)) + 1);
+      }
+      const answerOptions = Array.from(numerators, (value) => `${value}/${denominator}`);
+      return makeQuestion({
+        prompt: `${context.whole} foi dividida em ${denominator} partes iguais. ${numerator} partes foram servidas. Que fração representa a parte servida?`,
+        contextId: `fracoes:${context.place}`,
+        example: `Exemplo prático: de ${denominator} partes iguais de ${context.subject}, ${numerator} foram servidas. A fração é ${numerator}/${denominator}.`,
+        visual: { icon: context.icon, groups: [`${numerator} partes servidas`, `${denominator - numerator} restantes`], caption: 'Compare as partes servidas com o total' },
+        correctAnswer: correct,
+        options: answerOptions,
+        explanation: `O denominador mostra o total de partes iguais (${denominator}) e o numerador mostra quantas foram servidas (${numerator}). A fração é ${correct}.`,
+      });
+    },
+  },
 };
 
 export function getGameDefinition(gameKey) {
@@ -211,6 +235,18 @@ const CONTEXTS = {
     { name: 'Hexágono', sides: 6, object: 'um parafuso de seis lados' },
     { name: 'Triângulo', sides: 3, object: 'o contorno de uma fatia de pizza' },
     { name: 'Quadrado', sides: 4, object: 'um tabuleiro quadriculado' },
+  ],
+  fracoes: [
+    { place: 'pizza', whole: 'Uma pizza', subject: 'pizza', icon: '🍕' },
+    { place: 'chocolate', whole: 'Uma barra de chocolate', subject: 'barra de chocolate', icon: '🍫' },
+    { place: 'melancia', whole: 'Uma melancia', subject: 'melancia', icon: '🍉' },
+    { place: 'bolo', whole: 'Um bolo', subject: 'bolo', icon: '🎂' },
+    { place: 'torta', whole: 'Uma torta', subject: 'torta', icon: '🥧' },
+    { place: 'sanduiche', whole: 'Um sanduíche', subject: 'sanduíche', icon: '🥪' },
+    { place: 'queijo', whole: 'Uma peça de queijo', subject: 'peça de queijo', icon: '🧀' },
+    { place: 'laranja', whole: 'Uma laranja', subject: 'laranja', icon: '🍊' },
+    { place: 'panqueca', whole: 'Uma panqueca', subject: 'panqueca', icon: '🥞' },
+    { place: 'biscoito', whole: 'Um biscoito redondo', subject: 'biscoito', icon: '🍪' },
   ],
 };
 

@@ -2589,6 +2589,9 @@ tbody tr:hover {
 .teacher-report-empty h2 { margin: 0 0 10px; font-family: var(--font-heading); }
 .teacher-start-guide ol { display: grid; gap: 8px; margin: 0; padding-left: 1.4rem; color: var(--color-text-soft); }
 .teacher-report-empty p { margin: 0; color: var(--color-text-soft); }
+.teacher-report-toolbar { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) auto auto; align-items: end; gap: 12px; margin: 16px 0; }
+.teacher-report-toolbar .field { margin: 0; }
+.teacher-report-toolbar .btn { min-height: 44px; white-space: nowrap; }
 .teacher-question-reports { margin-top: 24px; }
 .teacher-question-reports h3 { margin: 0 0 10px; }
 .teacher-question-reports ul { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
@@ -2598,6 +2601,24 @@ tbody tr:hover {
 .local-mode-link { margin-top: 12px; font-size: 0.84rem; }
 .local-mode-link a,
 .local-mode-note a { color: var(--color-primary-dark); font-weight: 900; }
+
+.director-panel { margin-top: 16px; padding-top: 4px; border-top: 1px solid var(--color-glass-border); text-align: left; font-size: 0.88rem; }
+.director-panel summary { padding: 10px 0; color: var(--color-accent-dark); font-weight: 800; text-align: center; cursor: pointer; }
+.director-panel .field { margin-bottom: 12px; }
+.teacher-code-form { display: grid; gap: 12px; margin-top: 12px; }
+.teacher-code-form .field { margin: 0; }
+.new-school-code { display: grid; gap: 10px; margin: 12px 0; padding: 12px; border-left: 4px solid var(--color-secondary); background: var(--color-hover); }
+.new-school-code p { margin: 0; }
+.teacher-code-value { display: block; padding: 10px; border-radius: 8px; background: #fff; font-weight: 800; letter-spacing: 0.04em; overflow-wrap: anywhere; user-select: all; }
+.teacher-code-list { display: grid; gap: 8px; margin: 12px 0; }
+.teacher-code-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 0; border-top: 1px solid var(--color-border); }
+.teacher-code-item div { display: grid; gap: 2px; }
+.teacher-code-item span { color: var(--color-text-soft); font-size: 0.84rem; }
+.challenge-feedback.is-error { color: var(--color-danger-dark); }
+@media (max-width: 720px) {
+  .teacher-report-toolbar { grid-template-columns: 1fr 1fr; }
+  .teacher-report-toolbar .btn { width: 100%; }
+}
 
 .account-logout-button {
   min-height: 38px;

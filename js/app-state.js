@@ -257,10 +257,10 @@
     const cleanCode = String(code || '').trim();
     const cleanClass = String(turma || '').trim();
     if (!cleanCode || !cleanClass) {
-      return { ok: false, message: 'Peça ao professor o código da sua turma.' };
+      return { ok: false, message: 'Peça à diretoria o código da sua turma.' };
     }
     if (!window.supabaseClient) {
-      return { ok: false, message: 'A validação da escola está indisponível. Peça ajuda ao professor.' };
+      return { ok: false, message: 'A validação da escola está indisponível. Peça ajuda à diretoria.' };
     }
 
     const auth = await getAnonymousSupabaseUser();
@@ -312,7 +312,7 @@
         && schoolEnrollmentPermit.expiresAt >= Date.now();
       schoolEnrollmentPermit = null;
       if (!permitIsValid) {
-        return { ok: false, message: 'Peça ao professor o código da sua turma antes de criar o perfil.' };
+        return { ok: false, message: 'Peça à diretoria o código da sua turma antes de criar o perfil.' };
       }
     }
 
@@ -508,7 +508,7 @@
   }
 
   function saveGameDraft(draft) {
-    const gameKeys = ['adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas'];
+    const gameKeys = ['adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas', 'fracoes'];
     if (!draft || !gameKeys.includes(draft.gameKey) || !Array.isArray(draft.questions)) return false;
     writeScopedJson(STORAGE_KEYS.gameDraft, {
       ...draft,
@@ -528,7 +528,7 @@
   }
 
   function saveGamePreferences(gameKey, preferences) {
-    const validGames = ['adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas'];
+    const validGames = ['adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas', 'fracoes'];
     if (!validGames.includes(gameKey)) return false;
     const current = readScopedJson(STORAGE_KEYS.gamePreferences, {});
     const goalTarget = Math.max(1, Math.min(4, Math.floor(Number(preferences?.goalTarget) || 2)));
@@ -542,7 +542,7 @@
   function saveQuestionReport(report) {
     const clean = {
       id: `report-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      gameKey: ['adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas'].includes(report?.gameKey) ? report.gameKey : 'adicao',
+      gameKey: ['adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas', 'fracoes'].includes(report?.gameKey) ? report.gameKey : 'adicao',
       prompt: String(report?.prompt || '').trim().slice(0, 500),
       reason: String(report?.reason || '').trim().slice(0, 500),
       createdAt: new Date().toISOString(),
@@ -620,7 +620,7 @@
   }
 
   function saveGameSession(session) {
-    const gameKeys = ['adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas'];
+    const gameKeys = ['adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas', 'fracoes'];
     const validated = validateScore(session);
     const entry = {
       id: `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -872,7 +872,7 @@
     const clean = {
       id: `challenge-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       title: String(challenge?.title || '').trim().slice(0, 80),
-      game: ['adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas'].includes(challenge?.game) ? challenge.game : 'adicao',
+      game: ['adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas', 'fracoes'].includes(challenge?.game) ? challenge.game : 'adicao',
       target: Math.min(4, Math.max(1, Math.floor(Number(challenge?.target) || 2))),
       turma: String(challenge?.turma || '').trim().slice(0, 80),
       createdAt: new Date().toISOString(),

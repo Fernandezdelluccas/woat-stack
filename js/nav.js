@@ -57,7 +57,10 @@
       return;
     }
 
-    chip.innerHTML = `<span class="user-chip__avatar">${perfil.avatar}</span> ${perfil.nome}`;
+    const avatar = document.createElement('span');
+    avatar.className = 'user-chip__avatar';
+    avatar.textContent = perfil.avatar || '🦊';
+    chip.replaceChildren(avatar, document.createTextNode(` ${perfil.nome}`));
     chip.title = 'Trocar perfil';
     chip.style.cursor = 'pointer';
     chip.addEventListener('click', () => {

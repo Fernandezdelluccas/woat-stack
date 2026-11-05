@@ -163,6 +163,9 @@ create table if not exists class_challenges (
 alter table class_challenges add column if not exists teacher_user_id uuid references teacher_accounts(user_id) on delete set null;
 alter table class_challenges add column if not exists local_challenge_id text;
 alter table class_challenges add column if not exists active boolean not null default true;
+alter table class_challenges drop constraint if exists class_challenges_game_key_check;
+alter table class_challenges add constraint class_challenges_game_key_check
+  check (game_key in ('adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas', 'fracoes'));
 create unique index if not exists idx_class_challenges_teacher_local on class_challenges(teacher_user_id, local_challenge_id) where local_challenge_id is not null;
 
 alter table profiles enable row level security;
@@ -373,14 +376,15 @@ begin
   if not (
     exists (
       select 1 from public.profiles
-      where auth_user_id = auth.uid()
-        and account_type = 'school'
-        and turma = btrim(p_turma)
+      where profiles.auth_user_id = auth.uid()
+        and profiles.account_type = 'school'
+        and profiles.turma = btrim(p_turma)
         and (auth.jwt() ->> 'is_anonymous') = 'true'
     )
     or exists (
       select 1 from public.teacher_classes
-      where teacher_id = auth.uid() and turma = btrim(p_turma)
+      where teacher_classes.teacher_id = auth.uid()
+        and teacher_classes.turma = btrim(p_turma)
     )
   ) then
     return;
@@ -402,11 +406,25 @@ $function$;
 revoke all on function public.get_class_game_ranking(text) from public;
 grant execute on function public.get_class_game_ranking(text) to authenticated;
 
+create table if not exists school_directors (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  school_name text not null,
+  display_name text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table school_directors enable row level security;
+revoke all on table school_directors from anon, authenticated;
+grant select on table school_directors to authenticated;
+drop policy if exists school_directors_read_self on school_directors;
+create policy school_directors_read_self on school_directors
+  for select to authenticated using (user_id = auth.uid());
+
 create table if not exists school_access_codes (
   code_hash text primary key,
   school_name text not null,
   turma text not null,
-  created_by uuid references teacher_accounts(user_id) on delete set null,
+  created_by uuid references auth.users(id) on delete set null,
   enabled boolean not null default true,
   max_uses integer not null default 100 check (max_uses > 0),
   used_count integer not null default 0 check (used_count >= 0),
@@ -414,21 +432,23 @@ create table if not exists school_access_codes (
   created_at timestamptz not null default now()
 );
 
-alter table school_access_codes add column if not exists created_by uuid references teacher_accounts(user_id) on delete set null;
+alter table school_access_codes add column if not exists created_by uuid;
+alter table school_access_codes drop constraint if exists school_access_codes_created_by_fkey;
+alter table school_access_codes add constraint school_access_codes_created_by_fkey
+  foreign key (created_by) references auth.users(id) on delete set null;
 
 alter table school_access_codes enable row level security;
 revoke all on table school_access_codes from anon, authenticated;
 grant select on table school_access_codes to authenticated;
 drop policy if exists teachers_read_own_access_codes on school_access_codes;
-create policy teachers_read_own_access_codes on school_access_codes
+drop policy if exists directors_read_school_access_codes on school_access_codes;
+create policy directors_read_school_access_codes on school_access_codes
   for select to authenticated
-  using (
-    created_by = auth.uid()
-    and exists (
-      select 1 from teacher_classes
-      where teacher_id = auth.uid() and turma = school_access_codes.turma
-    )
-  );
+  using (exists (
+    select 1 from public.school_directors as director
+    where director.user_id = auth.uid()
+      and director.school_name = school_access_codes.school_name
+  ));
 
 create or replace function public.create_school_access_code(
   p_code_hash text,
@@ -445,19 +465,18 @@ declare
   code_created boolean;
 begin
   if auth.uid() is null
+     or coalesce(auth.jwt() ->> 'is_anonymous', 'false') = 'true'
      or p_code_hash !~ '^[a-f0-9]{64}$'
      or p_max_uses not between 1 and 500
-     or not exists (
-       select 1 from public.teacher_classes
-       where teacher_id = auth.uid() and turma = btrim(p_turma)
-     ) then
+     or btrim(coalesce(p_turma, '')) not in ('1º ano', '2º ano', '3º ano', '4º ano', '5º ano')
+     or (p_expires_at is not null and p_expires_at <= now()) then
     return false;
   end if;
 
   insert into public.school_access_codes (code_hash, school_name, turma, created_by, max_uses, expires_at)
-  select p_code_hash, teacher.school_name, btrim(p_turma), auth.uid(), p_max_uses, p_expires_at
-    from public.teacher_accounts as teacher
-   where teacher.user_id = auth.uid()
+  select p_code_hash, director.school_name, btrim(p_turma), auth.uid(), p_max_uses, p_expires_at
+    from public.school_directors as director
+   where director.user_id = auth.uid()
   on conflict (code_hash) do nothing
   returning true into code_created;
 
@@ -474,14 +493,14 @@ as $function$
 declare
   code_revoked boolean;
 begin
-  update public.school_access_codes
+  update public.school_access_codes as access_code
      set enabled = false
-   where code_hash = p_code_hash
-     and turma = btrim(p_turma)
-     and created_by = auth.uid()
+   where access_code.code_hash = p_code_hash
+     and access_code.turma = btrim(p_turma)
      and exists (
-       select 1 from public.teacher_classes
-       where teacher_id = auth.uid() and turma = btrim(p_turma)
+       select 1 from public.school_directors as director
+       where director.user_id = auth.uid()
+         and director.school_name = access_code.school_name
      )
   returning true into code_revoked;
 
@@ -545,3 +564,5 @@ create index if not exists idx_pontuacoes_professor_turma on pontuacoes(professo
 create index if not exists idx_respostas_student_date on respostas(turma, nome_aluno, created_at desc);
 create index if not exists idx_progresso_fases_student on progresso_fases(nome_aluno, turma, fase_key);
 create index if not exists idx_class_challenges_turma on class_challenges(turma, created_at desc);
+
+notify pgrst, 'reload schema';

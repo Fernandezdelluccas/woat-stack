@@ -21,16 +21,23 @@ Use a raiz do repositório como Root Directory, Framework Preset `Other` e deixe
 
 ## Acesso escolar e visitante
 
-Crianças entram com nome/apelido e PIN de quatro dígitos. O perfil escolar pede turma e um código privado fornecido pelo professor; o cadastro visitante não pede código. O código é validado pelo RPC do Supabase e não há código provisório embutido no site. Visitantes não consultam nem pontuam no ranking da escola.
+Crianças entram com nome/apelido e PIN de quatro dígitos. O perfil escolar pede turma e um código privado fornecido pela diretoria; o cadastro visitante não pede código. O código é validado pelo RPC do Supabase e não há código provisório embutido no site. Visitantes não consultam nem pontuam no ranking da escola.
 
 Para habilitar o cadastro escolar, sincronização do jogo e painel docente:
 
 1. Anonymous Sign-Ins está habilitado neste projeto e é usado para vincular o perfil local a uma identidade Supabase sem e-mail.
-2. Reaplique o conteúdo completo e atualizado de `supabase/schema.sql` no SQL Editor do projeto `vvcdxxcdhmetfvdtwkpq`. A versão anterior executada ainda não continha `profile_state` nem o RPC `get_class_game_ranking`.
-3. Crie contas docentes no Supabase Auth e associe cada UUID às turmas autorizadas em `teacher_accounts` e `teacher_classes`.
-4. O docente autorizado cria códigos privados e missões no painel. Códigos são guardados somente como hash; partidas concluídas sincronizam com `game_sessions`, o estado do perfil com `profile_state` e missões com `class_challenges`. O ranking é agregado das partidas e as missões ficam visíveis apenas à turma autorizada.
+2. Reaplique o conteúdo completo e atualizado de `supabase/schema.sql` no SQL Editor do projeto `vvcdxxcdhmetfvdtwkpq`. O banco já tem `profile_state`, mas ainda precisa da correção do RPC `get_class_game_ranking`, da tabela `school_directors` e do suporte a Frações nas missões.
+3. Crie contas no Supabase Auth: a da diretoria entra em `school_directors`; as docentes entram em `teacher_accounts` e `teacher_classes` (turmas autorizadas).
+4. Somente a diretoria cria e revoga códigos de cadastro, pelo painel "Diretoria" da tela inicial (a sessão dela fica só em memória e não afeta o perfil do aluno). Códigos são guardados somente como hash; partidas concluídas sincronizam com `game_sessions`, o estado do perfil com `profile_state` e missões com `class_challenges`. O ranking é agregado das partidas e as missões ficam visíveis apenas à turma autorizada.
 
-Exemplo de provisionamento inicial de professor, substituindo o UUID e os nomes:
+Exemplo de provisionamento da diretoria, substituindo o UUID e os nomes:
+
+```sql
+insert into public.school_directors (user_id, school_name, display_name)
+values ('UUID-DO-USUARIO-AUTH', 'Nome da escola', 'Nome da diretora');
+```
+
+Exemplo de provisionamento de professor, substituindo o UUID e os nomes:
 
 ```sql
 insert into public.teacher_accounts (user_id, school_name, display_name)
