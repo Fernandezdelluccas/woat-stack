@@ -54,6 +54,11 @@
             <input type="password" id="professorPassword" placeholder="Digite sua senha" autocomplete="current-password" required />
           </div>
 
+          <div class="field" id="teacherPasswordConfirmationField" hidden>
+            <label for="teacherPasswordConfirmation">Confirme a nova senha</label>
+            <input type="password" id="teacherPasswordConfirmation" autocomplete="new-password" />
+          </div>
+
           <div class="field" id="teacherCodeField" hidden>
             <label for="teacherInviteCode">Código de convite da diretoria</label>
             <input type="password" id="teacherInviteCode" placeholder="PROF-XXXXXXXXXXXXXXXXXXXXXXXX" autocomplete="off" maxlength="64" />
@@ -66,6 +71,8 @@
           <button type="submit" class="btn btn--primary btn--block" id="teacherAuthSubmit">Entrar</button>
         </form>
 
+        <button type="button" id="teacherForgotPassword" class="btn btn--ghost btn--block" style="margin-top:10px;">Esqueci minha senha</button>
+        <button type="button" id="teacherBackToLogin" class="btn btn--ghost btn--block" style="margin-top:10px;" hidden>Voltar para o login</button>
         <button type="button" id="cancelProfessorLogin" class="btn btn--ghost btn--block" style="margin-top:10px;">Cancelar e voltar</button>
         <p class="hint local-mode-link">Para testar sem Supabase, <a href="professor.html?modo=local">abra o painel local</a>. Ele não libera acesso remoto.</p>
 
@@ -81,7 +88,7 @@
         <span class="eyebrow">Painel do Professor</span>
         <h1>Turmas e missões</h1>
         <p>Publique uma missão para a turma e acompanhe o aprendizado.</p>
-        <p class="hint" id="teacherWelcome" hidden></p>
+        <p class="hint" id="teacherWelcome" role="status" aria-live="polite" hidden></p>
         <div style="margin-top: 18px;">
           <button type="button" id="logoutProfessor" class="btn btn--ghost">Sair</button>
         </div>
@@ -191,11 +198,11 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabaseClient.js?v=3"></script>
+  <script src="js/supabaseClient.js?v=4"></script>
   <script src="js/nav.js?v=8"></script>
-  <script src="js/app-state.js?v=20"></script>
-  <script src="js/professor-auth.js?v=10"></script>
-  <script src="js/professor-dashboard.js?v=5"></script>
+  <script src="js/app-state.js?v=22"></script>
+  <script src="js/professor-auth.js?v=12"></script>
+  <script src="js/professor-dashboard.js?v=7"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const form = document.getElementById('challengeForm');
@@ -207,9 +214,52 @@
         adicao: 'Adição', subtracao: 'Subtração', multiplicacao: 'Multiplicação',
         divisao: 'Divisão', formas: 'Formas geométricas', fracoes: 'Frações',
       };
-      const renderChallenges = () => {
+      let renderAttempt = 0;
+      const renderChallenges = async () => {
+        const attempt = ++renderAttempt;
         list.replaceChildren();
-        const challenges = window.GeniosApp.getChallenges();
+        let challenges = window.GeniosApp.getChallenges();
+        if (!localMode) {
+          const client = window.teacherSupabaseClient;
+          if (!client) return;
+          const { data: sessionData, error: sessionError } = await client.auth.getSession();
+          if (attempt !== renderAttempt) return;
+          const teacherId = sessionData?.session?.user?.id;
+          if (sessionError || !teacherId) {
+            feedback.textContent = 'Entre com a conta docente para carregar as missões.';
+            return;
+          }
+          const remote = [];
+          const pageSize = 1000;
+          for (let offset = 0; ; offset += pageSize) {
+            const { data, error } = await client.from('class_challenges')
+              .select('id, local_challenge_id, title, game_key, turma, target, created_at')
+              .eq('teacher_user_id', teacherId)
+              .order('created_at', { ascending: false })
+              .order('id')
+              .range(offset, offset + pageSize - 1);
+            if (attempt !== renderAttempt) return;
+            if (error || !data) {
+              feedback.textContent = 'Não foi possível carregar as missões publicadas. Confira a conexão e tente novamente.';
+              break;
+            }
+            remote.push(...data);
+            if (data.length < pageSize) break;
+          }
+          const publishedIds = new Set(remote.map((item) => item.local_challenge_id).filter(Boolean));
+          const pending = challenges.filter((item) => item.teacherUserId === teacherId && !item.supabaseId && !publishedIds.has(item.id));
+          challenges = [
+            ...pending,
+            ...remote.map((item) => ({
+              id: item.local_challenge_id || item.id,
+              supabaseId: item.id,
+              title: item.title,
+              turma: item.turma,
+              game: item.game_key,
+              target: item.target,
+            })),
+          ];
+        }
         if (challenges.length === 0) {
           const empty = document.createElement('p');
           empty.className = 'hint';
@@ -226,6 +276,25 @@
           const syncLabel = challenge.supabaseId ? ' · sincronizada' : ' · neste navegador';
           details.textContent = `${gameLabels[challenge.game] || 'Minijogo'} · meta de ${challenge.target} acertos por etapa${syncLabel}`;
           item.append(title, details);
+          if (!localMode && !challenge.supabaseId) {
+            const retry = document.createElement('button');
+            retry.type = 'button';
+            retry.className = 'btn btn--ghost';
+            retry.textContent = 'Tentar publicar novamente';
+            retry.addEventListener('click', async () => {
+              retry.disabled = true;
+              try {
+                const published = await window.GeniosApp.publishClassChallenge(challenge);
+                feedback.textContent = published.ok ? 'Missão publicada.' : published.message;
+                await renderChallenges();
+              } catch (error) {
+                console.error('Erro ao publicar missão:', error);
+                feedback.textContent = 'Não foi possível publicar a missão. Verifique a conexão.';
+                retry.disabled = false;
+              }
+            });
+            item.append(retry);
+          }
           list.appendChild(item);
         });
       };
@@ -236,11 +305,27 @@
           feedback.textContent = 'Selecione uma turma vinculada à sua conta antes de criar a missão.';
           return;
         }
+        let teacherUserId = '';
+        if (!localMode) {
+          try {
+            const { data, error } = await window.teacherSupabaseClient.auth.getSession();
+            teacherUserId = data?.session?.user?.id || '';
+            if (error || !teacherUserId) {
+              feedback.textContent = 'Entre com a conta docente para criar uma missão.';
+              return;
+            }
+          } catch (error) {
+            console.error('Erro ao verificar a sessão docente:', error);
+            feedback.textContent = 'Não foi possível verificar sua sessão. Confira a conexão e tente novamente.';
+            return;
+          }
+        }
         const result = window.GeniosApp.createChallenge({
           title: document.getElementById('challengeTitle').value,
           game: document.getElementById('challengeGame').value,
           target: document.getElementById('challengeTarget').value,
           turma: document.getElementById('challengeClass').value,
+          teacherUserId,
         });
         if (!result.ok) {
           feedback.textContent = result.message;
@@ -259,9 +344,24 @@
             feedback.textContent = 'Não foi possível publicar a missão agora. Confira a conexão e tente novamente.';
           }
         }
-        if (result.ok) { form.reset(); renderChallenges(); }
+        if (result.ok) {
+          form.reset();
+          try {
+            await renderChallenges();
+          } catch (error) {
+            console.error('Erro ao carregar missões:', error);
+            feedback.textContent = 'Não foi possível carregar as missões. Verifique a conexão.';
+          }
+        }
       });
-      renderChallenges();
+      document.addEventListener('professor:login', () => { renderChallenges().catch((error) => {
+        console.error('Erro ao carregar missões:', error);
+        feedback.textContent = 'Não foi possível carregar as missões. Verifique a conexão.';
+      }); });
+      renderChallenges().catch((error) => {
+        console.error('Erro ao carregar missões:', error);
+        feedback.textContent = 'Não foi possível carregar as missões. Verifique a conexão.';
+      });
     });
   </script>
 </body>

@@ -771,7 +771,7 @@
   }
 
   async function publishClassChallenge(challenge) {
-    const client = window.supabaseClient;
+    const client = window.teacherSupabaseClient;
     if (!client?.auth?.getSession) {
       return { ok: false, localOnly: true, message: 'Missão salva neste navegador; Auth docente indisponível.' };
     }
@@ -875,6 +875,7 @@
       game: ['adicao', 'subtracao', 'multiplicacao', 'divisao', 'formas', 'fracoes'].includes(challenge?.game) ? challenge.game : 'adicao',
       target: Math.min(4, Math.max(1, Math.floor(Number(challenge?.target) || 2))),
       turma: String(challenge?.turma || '').trim().slice(0, 80),
+      teacherUserId: String(challenge?.teacherUserId || ''),
       createdAt: new Date().toISOString(),
     };
     if (!clean.title) return { ok: false, message: 'Digite um nome para o desafio.' };

@@ -4,6 +4,10 @@
   const form = document.getElementById('professorLoginForm');
   const emailInput = document.getElementById('professorEmail');
   const passwordInput = document.getElementById('professorPassword');
+  const passwordConfirmation = document.getElementById('teacherPasswordConfirmation');
+  const passwordConfirmationField = document.getElementById('teacherPasswordConfirmationField');
+  const forgotPasswordButton = document.getElementById('teacherForgotPassword');
+  const backToLoginButton = document.getElementById('teacherBackToLogin');
   const errorText = document.getElementById('loginError');
   const logoutButton = document.getElementById('logoutProfessor');
   const cancelButton = document.getElementById('cancelProfessorLogin');
@@ -28,6 +32,8 @@
   let authAttempt = 0;
   let mode = 'login';
   let pendingUser = null;
+  const recoveryRedirect = new URL(window.location.search || '', window.location.origin || 'http://localhost').searchParams.get('recuperacao') === '1';
+  let recoverySession = false;
 
   if (!form || !loginSection || !dashboardSection) {
     return;
@@ -77,7 +83,7 @@
 
   async function hasTeacherAccess(userId) {
     try {
-      const { data, error } = await window.supabaseClient
+      const { data, error } = await window.teacherSupabaseClient
         .from('teacher_accounts')
         .select('user_id, display_name')
         .eq('user_id', userId)
@@ -124,25 +130,43 @@
       hint: 'Se esta não é a conta certa, toque em Cancelar e voltar para sair dela.',
       submit: 'Concluir cadastro',
     },
+    forgot: {
+      title: 'Recuperar senha',
+      intro: 'Informe o e-mail usado na sua conta para receber um link de recuperação.',
+      hint: 'Confira também a pasta de spam. O link de recuperação expira.',
+      submit: 'Enviar link de recuperação',
+    },
+    recovery: {
+      title: 'Escolher nova senha',
+      intro: 'Digite e confirme uma nova senha para sua conta.',
+      hint: 'Use pelo menos 8 caracteres.',
+      submit: 'Salvar nova senha',
+    },
   };
 
   function setMode(nextMode) {
     mode = nextMode;
     const registering = mode === 'register';
     const completing = mode === 'complete';
+    const recovering = mode === 'recovery';
+    const forgot = mode === 'forgot';
     const text = modeTexts[mode];
     nameField.hidden = !(registering || completing);
     codeField.hidden = !(registering || completing);
-    emailField.hidden = completing;
-    passwordField.hidden = completing;
-    emailInput.required = !completing;
-    passwordInput.required = !completing;
+    emailField.hidden = completing || recovering;
+    passwordField.hidden = completing || forgot;
+    emailInput.required = !completing && !recovering;
+    passwordInput.required = !completing && !forgot;
+    if (passwordConfirmationField) passwordConfirmationField.hidden = !recovering;
+    if (passwordConfirmation) passwordConfirmation.required = recovering;
     nameInput.required = registering || completing;
     codeInput.required = registering || completing;
-    passwordInput.autocomplete = registering ? 'new-password' : 'current-password';
-    passwordInput.placeholder = registering ? 'Crie uma senha com 8 ou mais caracteres' : 'Digite sua senha';
-    passwordInput.minLength = registering ? 8 : 0;
-    modeSwitch.hidden = completing;
+    passwordInput.autocomplete = registering || recovering ? 'new-password' : 'current-password';
+    passwordInput.placeholder = registering || recovering ? 'Crie uma senha com 8 ou mais caracteres' : 'Digite sua senha';
+    passwordInput.minLength = registering || recovering ? 8 : 0;
+    modeSwitch.hidden = completing || forgot || recovering;
+    if (forgotPasswordButton) forgotPasswordButton.hidden = mode !== 'login';
+    if (backToLoginButton) backToLoginButton.hidden = !forgot;
     loginModeButton.classList.toggle('is-active', mode === 'login');
     loginModeButton.setAttribute('aria-pressed', String(mode === 'login'));
     registerModeButton.classList.toggle('is-active', registering);
@@ -176,7 +200,7 @@
   }
 
   async function finishRegistration(user, displayName, code, currentAttempt) {
-    const { data, error } = await window.supabaseClient.rpc('register_teacher', {
+    const { data, error } = await window.teacherSupabaseClient.rpc('register_teacher', {
       p_code: code.trim(),
       p_display_name: displayName.trim(),
     });
@@ -208,7 +232,7 @@
     if (password.length < 8) return showError('Crie uma senha com pelo menos 8 caracteres.');
     if (code.trim().length < 12) return showError('Informe o código de convite fornecido pela diretoria.');
 
-    const { data, error } = await window.supabaseClient.auth.signUp({
+    const { data, error } = await window.teacherSupabaseClient.auth.signUp({
       email,
       password,
       options: {
@@ -239,9 +263,9 @@
   async function loginAccount(currentAttempt) {
     const email = emailInput.value.trim();
     const password = passwordInput.value;
-    const { data, error } = await window.supabaseClient.auth.signInWithPassword({ email, password });
+    const { data, error } = await window.teacherSupabaseClient.auth.signInWithPassword({ email, password });
     if (currentAttempt !== authAttempt) return;
-    if (error || !data.user) {
+    if (error || !data?.user) {
       const errorText = String(error?.message || '').toLowerCase();
       const invalidCredentials = error?.status === 400
         || error?.status === 401
@@ -259,11 +283,11 @@
 
     const access = await hasTeacherAccess(data.user.id);
     if (currentAttempt !== authAttempt) {
-      await window.supabaseClient.auth.signOut();
+      await window.teacherSupabaseClient.auth.signOut();
       return;
     }
     if (!access.ok) {
-      await window.supabaseClient.auth.signOut();
+      await window.teacherSupabaseClient.auth.signOut();
       setLoggedIn(false);
       showError('Não foi possível verificar sua autorização. Tente novamente ou peça ao administrador para conferir o Supabase.');
       return;
@@ -282,42 +306,117 @@
     if (!pendingUser) return showError('Sua sessão expirou. Entre novamente.');
     if (displayName.length < 2) return showError('Informe seu nome.');
     if (codeInput.value.trim().length < 12) return showError('Informe o código de convite fornecido pela diretoria.');
+    const access = await hasTeacherAccess(pendingUser.id);
+    if (currentAttempt !== authAttempt) return;
+    if (!access.ok) return showError('Não foi possível verificar sua autorização. Tente novamente.');
+    if (access.allowed) return openDashboard(pendingUser.id, access.displayName);
     await finishRegistration(pendingUser, displayName, codeInput.value, currentAttempt);
+  }
+
+  async function sendPasswordRecovery(currentAttempt) {
+    const { error } = await window.teacherSupabaseClient.auth.resetPasswordForEmail(emailInput.value.trim(), {
+      redirectTo: `${window.location.origin}/professor.html?recuperacao=1`,
+    });
+    if (currentAttempt !== authAttempt) return;
+    if (error) return showError('Não foi possível solicitar a recuperação. Confira o e-mail e tente novamente.');
+    showNotice('Se o e-mail estiver cadastrado, enviaremos um link para redefinir sua senha.');
+  }
+
+  async function updatePassword(currentAttempt) {
+    if (!recoverySession) return showError('Este link de recuperação não é válido. Solicite outro.');
+    if (passwordInput.value.length < 8) return showError('Crie uma senha com pelo menos 8 caracteres.');
+    if (passwordInput.value !== passwordConfirmation.value) return showError('As senhas não coincidem.');
+    const { error } = await window.teacherSupabaseClient.auth.updateUser({ password: passwordInput.value });
+    if (currentAttempt !== authAttempt) return;
+    if (error) return showError('Não foi possível alterar a senha. Solicite um novo link ou tente novamente.');
+    recoverySession = false;
+    passwordInput.value = '';
+    passwordConfirmation.value = '';
+    const { error: signOutError } = await window.teacherSupabaseClient.auth.signOut({ scope: 'local' });
+    if (signOutError) return showError('Senha alterada, mas não foi possível encerrar a sessão. Atualize a página e entre novamente.');
+    if (window.history?.replaceState) window.history.replaceState(null, '', window.location.pathname);
+    setMode('login');
+    showNotice('Senha alterada. Entre com sua nova senha.');
   }
 
   loginModeButton.addEventListener('click', () => { showNotice(''); setMode('login'); });
   registerModeButton.addEventListener('click', () => { showNotice(''); setMode('register'); });
+  forgotPasswordButton?.addEventListener('click', () => { showNotice(''); setMode('forgot'); });
+  backToLoginButton?.addEventListener('click', () => { showNotice(''); setMode('login'); });
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const currentAttempt = ++authAttempt;
     hideError();
-    if (!window.supabaseClient) {
+    if (!window.teacherSupabaseClient) {
       showError('Autenticação indisponível. Peça ao administrador para configurar o Supabase.');
       return;
     }
 
-    if (mode === 'register') await registerAccount(currentAttempt);
-    else if (mode === 'complete') await completeAccount(currentAttempt);
-    else await loginAccount(currentAttempt);
+    submitButton.disabled = true;
+    for (const button of [loginModeButton, registerModeButton, forgotPasswordButton, backToLoginButton]) {
+      if (button) button.disabled = true;
+    }
+    try {
+      if (mode === 'register') await registerAccount(currentAttempt);
+      else if (mode === 'complete') await completeAccount(currentAttempt);
+      else if (mode === 'forgot') await sendPasswordRecovery(currentAttempt);
+      else if (mode === 'recovery') await updatePassword(currentAttempt);
+      else await loginAccount(currentAttempt);
+    } catch (error) {
+      console.error('Erro na autenticação do professor:', error);
+      if (currentAttempt === authAttempt) showError('Não foi possível concluir a operação. Confira a conexão e tente novamente.');
+    } finally {
+      submitButton.disabled = false;
+      for (const button of [loginModeButton, registerModeButton, forgotPasswordButton, backToLoginButton]) {
+        if (button) button.disabled = false;
+      }
+    }
   });
 
   logoutButton.addEventListener('click', async () => {
-    if (!localDemo && window.supabaseClient) await window.supabaseClient.auth.signOut();
+    if (!localDemo && window.teacherSupabaseClient) {
+      try {
+        const { error } = await window.teacherSupabaseClient.auth.signOut();
+        if (error) {
+          if (welcomeText) {
+            welcomeText.textContent = 'Não foi possível sair. Verifique a conexão e tente novamente.';
+            welcomeText.hidden = false;
+          }
+          return;
+        }
+      } catch (error) {
+        console.error('Erro ao sair da conta docente:', error);
+        if (welcomeText) {
+          welcomeText.textContent = 'Não foi possível sair. Verifique a conexão e tente novamente.';
+          welcomeText.hidden = false;
+        }
+        return;
+      }
+    }
     setLoggedIn(false);
     hideError();
     returnToStudentLogin();
   });
 
   cancelButton?.addEventListener('click', async () => {
-    if (mode === 'complete' && window.supabaseClient) await window.supabaseClient.auth.signOut();
+    if ((mode === 'complete' || mode === 'recovery') && window.teacherSupabaseClient) {
+      try {
+        const { error } = await window.teacherSupabaseClient.auth.signOut({ scope: 'local' });
+        if (error) return showError('Não foi possível sair. Verifique a conexão e tente novamente.');
+      } catch (error) {
+        console.error('Erro ao sair da conta docente:', error);
+        return showError('Não foi possível sair. Verifique a conexão e tente novamente.');
+      }
+    }
     returnToPreviousPage();
   });
 
   loginSection.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
     event.preventDefault();
-    returnToPreviousPage();
+    if (mode === 'complete' || mode === 'recovery') cancelButton.click();
+    else returnToPreviousPage();
   });
 
   async function restoreSession() {
@@ -327,7 +426,7 @@
       return;
     }
 
-    if (!window.supabaseClient) {
+    if (!window.teacherSupabaseClient) {
       setLoggedIn(false);
       return;
     }
@@ -336,7 +435,7 @@
     let data;
     let error;
     try {
-      ({ data, error } = await window.supabaseClient.auth.getSession());
+      ({ data, error } = await window.teacherSupabaseClient.auth.getSession());
     } catch (sessionError) {
       setLoggedIn(false);
       showError('Não foi possível restaurar a sessão. Atualize a página e tente novamente.');
@@ -349,12 +448,59 @@
       showError('Não foi possível restaurar a sessão. Atualize a página e tente novamente.');
       return;
     }
-    if (!user || user.is_anonymous) {
+    if (recoveryRedirect || recoverySession) {
+      setLoggedIn(false);
+      if (recoverySession && user) {
+        setMode('recovery');
+      } else {
+        setMode('forgot');
+        showError('O link de recuperação é inválido ou expirou. Solicite outro.');
+      }
+      return;
+    }
+    if (!user && window.supabaseClient) {
+      let oldData;
+      let oldError;
+      try {
+        ({ data: oldData, error: oldError } = await window.supabaseClient.auth.getSession());
+      } catch (sessionError) {
+        setLoggedIn(false);
+        showError('Não foi possível verificar a sessão anterior. Atualize a página e tente novamente.');
+        return;
+      }
+      if (currentAttempt !== authAttempt) return;
+      if (oldError) {
+        setLoggedIn(false);
+        showError('Não foi possível verificar a sessão anterior. Atualize a página e tente novamente.');
+        return;
+      }
+      const oldSession = oldData?.session;
+      if (oldSession?.user && !oldSession.user.is_anonymous) {
+        try {
+          const { error: clearError } = await window.supabaseClient.auth.signOut({ scope: 'local' });
+          if (clearError) {
+            setLoggedIn(false);
+            showError('Não foi possível separar a sessão anterior. Atualize a página e tente novamente.');
+            return;
+          }
+          if (currentAttempt !== authAttempt) return;
+          setLoggedIn(false);
+          showNotice('Por uma atualização de segurança, entre novamente para separar sua sessão da sessão dos alunos.');
+          return;
+        } catch (sessionError) {
+          setLoggedIn(false);
+          showError('Não foi possível separar a sessão anterior. Atualize a página e tente novamente.');
+          return;
+        }
+      }
+    }
+    const restoredUser = data?.session?.user;
+    if (!restoredUser || restoredUser.is_anonymous) {
       setLoggedIn(false);
       return;
     }
 
-    const access = await hasTeacherAccess(user.id);
+    const access = await hasTeacherAccess(restoredUser.id);
     if (currentAttempt !== authAttempt) return;
     if (!access.ok) {
       setLoggedIn(false);
@@ -362,12 +508,22 @@
       return;
     }
     if (!access.allowed) {
-      enterCompletion(user, 'Conta confirmada. Falta só o código de convite da diretoria para liberar o painel.');
+      enterCompletion(restoredUser, 'Conta confirmada. Falta só o código de convite da diretoria para liberar o painel.');
       return;
     }
 
-    openDashboard(user.id, access.displayName);
+    openDashboard(restoredUser.id, access.displayName);
   }
 
+  if (!localDemo && window.teacherSupabaseClient?.auth?.onAuthStateChange) {
+    window.teacherSupabaseClient.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' && session?.user) {
+        recoverySession = true;
+        setLoggedIn(false);
+        setMode('recovery');
+        showNotice('');
+      }
+    });
+  }
   restoreSession();
 })();

@@ -8,7 +8,12 @@
     return;
   }
 
-  window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: { detectSessionInUrl: false },
+  });
+  window.teacherSupabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: { storageKey: 'genios-teacher-session' },
+  });
 
   // Sessão só em memória: logar a diretoria não pode substituir a sessão anônima do aluno.
   window.createEphemeralSupabaseClient = () => window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {

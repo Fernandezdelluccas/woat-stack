@@ -145,7 +145,7 @@
     const feedback = document.getElementById('teacherReportFeedback');
     const rows = document.getElementById('teacherReportRows');
     const reportsList = document.getElementById('teacherQuestionReports');
-    if (!panel || !window.supabaseClient) return;
+    if (!panel || !window.teacherSupabaseClient) return;
     panel.hidden = false;
     if (refreshReportButton) refreshReportButton.disabled = true;
     feedback.textContent = 'Carregando dados autorizados...';
@@ -153,7 +153,7 @@
     try {
       let teacherId = event?.detail?.userId;
       if (!teacherId) {
-        const { data } = await window.supabaseClient.auth.getUser();
+        const { data } = await window.teacherSupabaseClient.auth.getUser();
         teacherId = data?.user?.id;
       }
       if (!teacherId) {
@@ -161,7 +161,7 @@
         return;
       }
 
-      const { data: classes, error: classError } = await window.supabaseClient
+      const { data: classes, error: classError } = await window.teacherSupabaseClient
         .from('teacher_classes')
         .select('turma')
         .eq('teacher_id', teacherId);
@@ -181,39 +181,47 @@
         classNames.forEach((className) => reportClassFilter.add(new Option(className, className)));
         if (classNames.includes(selectedClass)) reportClassFilter.value = selectedClass;
       }
-      const { data: students, error: studentsError } = await window.supabaseClient
-        .from('profiles')
-        .select('id, nome, turma')
-        .in('turma', classNames)
-        .eq('account_type', 'school');
-      if (studentsError || !students) throw new Error('Não foi possível carregar os alunos das turmas.');
-
+      const students = [];
+      const pageSize = 1000;
+      for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await window.teacherSupabaseClient
+          .from('profiles')
+          .select('id, nome, turma')
+          .in('turma', classNames)
+          .eq('account_type', 'school')
+          .order('id')
+          .range(offset, offset + pageSize - 1);
+        if (error || !data) throw new Error('Não foi possível carregar os alunos das turmas.');
+        students.push(...data);
+        if (data.length < pageSize) break;
+      }
       const studentIds = students.map((student) => student.id);
-      let sessions = [];
-      let profileStates = [];
-      if (studentIds.length > 0) {
-        const pageSize = 1000;
+      const sessions = [];
+      const profileStates = [];
+      for (let start = 0; start < studentIds.length; start += 200) {
+        const batch = studentIds.slice(start, start + 200);
         for (let offset = 0; ; offset += pageSize) {
-          const { data, error } = await window.supabaseClient
+          const { data, error } = await window.teacherSupabaseClient
             .from('game_sessions')
             .select('profile_id, game_key, score, correct_answers, wrong_answers, elapsed_seconds, created_at')
-            .in('profile_id', studentIds)
+            .in('profile_id', batch)
             .order('created_at', { ascending: false })
+            .order('id')
             .range(offset, offset + pageSize - 1);
-          if (error) throw new Error('Não foi possível carregar as partidas das turmas.');
-          sessions.push(...(data || []));
-          if (!data || data.length < pageSize) break;
+          if (error || !data) throw new Error('Não foi possível carregar as partidas das turmas.');
+          sessions.push(...data);
+          if (data.length < pageSize) break;
         }
 
-        const { data: stateData, error: stateError } = await window.supabaseClient
+        const { data: stateData, error: stateError } = await window.teacherSupabaseClient
           .from('profile_state')
           .select('profile_id, payload')
-          .in('profile_id', studentIds);
-        if (stateError) throw new Error('Não foi possível carregar os relatos de questões.');
-        profileStates = stateData || [];
+          .in('profile_id', batch);
+        if (stateError || !stateData) throw new Error('Não foi possível carregar os relatos de questões.');
+        profileStates.push(...stateData);
       }
 
-      reportSnapshot = { students: students || [], sessions, profileStates };
+      reportSnapshot = { students, sessions, profileStates };
       renderTeacherReport();
     } catch (error) {
       reportSnapshot = null;
@@ -243,9 +251,9 @@
       return;
     }
     const teacherId = event?.detail?.userId;
-    if (!teacherId || !window.supabaseClient) return;
+    if (!teacherId || !window.teacherSupabaseClient) return;
 
-    const { data, error } = await window.supabaseClient
+    const { data, error } = await window.teacherSupabaseClient
       .from('teacher_classes')
       .select('turma')
       .eq('teacher_id', teacherId)

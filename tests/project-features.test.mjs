@@ -12,6 +12,7 @@ function createApp(initialData = {}, validSchoolCode = 'CODIGO-DE-TESTE', shared
     removeItem: (key) => storage.delete(key),
   };
   const window = withSupabase ? {
+    teacherSupabaseClient: supabaseClientOverride,
     supabaseClient: supabaseClientOverride || {
       auth: {
         getSession: async () => ({ data: { session: null }, error: null }),
@@ -260,7 +261,7 @@ test('login explica perfil inexistente separadamente de PIN incorreto', async ()
 
 test('entrada usa versão nova do módulo de login para descartar cache antigo', () => {
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.ok(html.includes('js/app-state.js?v=20'));
+  assert.ok(html.includes('js/app-state.js?v=22'));
 });
 
 test('ajuda de acesso explica criação e entrada e destaca caminhos alternativos', () => {
@@ -602,9 +603,14 @@ test('login do professor exige Auth e papel docente, e retorna à página intern
   let teacherLookupFails = false;
   let loginFailure = null;
   let signOutCount = 0;
+  let studentSignOutCount = 0;
   const window = {
     location: { origin: 'https://jogo.example', pathname: '/professor.html', replace: (path) => { redirect = path; } },
-    supabaseClient: {
+    supabaseClient: { auth: {
+      getSession: async () => ({ data: { session: { user: { id: 'student', is_anonymous: true } } }, error: null }),
+      signOut: async () => { studentSignOutCount += 1; return { error: null }; },
+    } },
+    teacherSupabaseClient: {
       auth: {
         getSession: async () => ({ data: { session: null }, error: null }),
         signInWithPassword: async ({ email, password }) => loginFailure
@@ -655,6 +661,7 @@ test('login do professor exige Auth e papel docente, e retorna à página intern
 
   await elements.logoutProfessor.handlers.click();
   assert.equal(localStorage.getItem('genios-professor-auth'), 'false');
+  assert.equal(studentSignOutCount, 0);
   assert.equal(redirect, 'index.html');
 
   teacherAllowed = false;
@@ -699,7 +706,7 @@ test('painel docente local abre sem Auth remoto e sai para cadastro local de alu
   };
   const window = {
     location: { search: '?modo=local', origin: 'https://jogo.example', pathname: '/professor.html', replace: (path) => { redirect = path; } },
-    supabaseClient: { auth: { getSession: async () => { remoteCalls += 1; return { data: { session: null } }; }, signOut: async () => { remoteCalls += 1; } } },
+    teacherSupabaseClient: { auth: { getSession: async () => { remoteCalls += 1; return { data: { session: null } }; }, signOut: async () => { remoteCalls += 1; } } },
     GeniosApp: { setTeacherSession: (value) => localStorage.setItem('genios-professor-auth', value) },
   };
   const source = fs.readFileSync(new URL('../js/professor-auth.js', import.meta.url), 'utf8');
@@ -714,6 +721,74 @@ test('painel docente local abre sem Auth remoto e sai para cadastro local de alu
   await elements.logoutProfessor.handlers.click();
   assert.equal(redirect, 'index.html?modo=local');
   assert.equal(remoteCalls, 0);
+});
+
+test('sessões do aluno e do professor usam armazenamento independente', async () => {
+  const clients = [];
+  const window = {
+    supabase: {
+      createClient(url, key, options = {}) {
+        const client = { options, session: null };
+        clients.push(client);
+        return client;
+      },
+    },
+  };
+  const source = fs.readFileSync(new URL('../js/supabaseClient.js', import.meta.url), 'utf8');
+  vm.runInNewContext(source, { window, console });
+  assert.notEqual(window.supabaseClient, window.teacherSupabaseClient);
+  assert.equal(window.supabaseClient.options.auth.detectSessionInUrl, false);
+  assert.equal(window.teacherSupabaseClient.options.auth.storageKey, 'genios-teacher-session');
+  window.supabaseClient.session = { user: { id: 'student', is_anonymous: true } };
+  window.teacherSupabaseClient.session = { user: { id: 'teacher' } };
+  window.teacherSupabaseClient.session = null;
+  assert.equal(window.supabaseClient.session.user.id, 'student');
+  assert.equal(clients.length, 2);
+});
+
+test('sessão docente antiga é encerrada apenas no cliente antigo e solicita novo login', async () => {
+  class Element {
+    constructor() { this.style = {}; this.value = ''; this.handlers = {}; this.hidden = false; this.classList = { toggle() {} }; }
+    addEventListener(type, handler) { this.handlers[type] = handler; }
+    setAttribute() {}
+    reset() {}
+  }
+  const ids = ['loginSection', 'dashboardSection', 'professorLoginForm', 'professorEmail', 'professorPassword', 'loginError', 'logoutProfessor', 'cancelProfessorLogin', 'teacherNavigation', 'teacherAuthTitle', 'teacherAuthIntro', 'teacherModeSwitch', 'teacherModeLogin', 'teacherModeRegister', 'teacherNameField', 'teacherName', 'teacherEmailField', 'teacherPasswordField', 'teacherCodeField', 'teacherInviteCode', 'teacherAuthHint', 'teacherAuthSubmit', 'loginNotice', 'teacherWelcome'];
+  const elements = Object.fromEntries(ids.map((id) => [id, new Element()]));
+  const user = { id: 'teacher-1', is_anonymous: false };
+  const session = { user, access_token: 'access', refresh_token: 'refresh' };
+  let clearedScope;
+  const teacherClient = {
+    auth: {
+      getSession: async () => ({ data: { session: null }, error: null }),
+    },
+    from: () => ({
+      select() { return this; },
+      eq() { return this; },
+      maybeSingle: async () => ({ data: { user_id: user.id, display_name: 'Professora' }, error: null }),
+    }),
+  };
+  const document = {
+    referrer: '',
+    getElementById: (id) => elements[id] || null,
+    querySelector: () => null,
+    dispatchEvent() {},
+  };
+  const window = {
+    location: { search: '', origin: 'https://jogo.example', pathname: '/professor.html' },
+    teacherSupabaseClient: teacherClient,
+    supabaseClient: { auth: {
+      getSession: async () => ({ data: { session }, error: null }),
+      signOut: async (options) => { clearedScope = options.scope; return { error: null }; },
+    } },
+    GeniosApp: { setTeacherSession() {} },
+  };
+  const source = fs.readFileSync(new URL('../js/professor-auth.js', import.meta.url), 'utf8');
+  vm.runInNewContext(source, { window, document, URL, CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options?.detail; } } });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(clearedScope, 'local');
+  assert.equal(elements.dashboardSection.style.display, 'none');
+  assert.match(elements.loginNotice.textContent, /entre novamente/);
 });
 
 test('relatório docente filtra turmas e minijogos, atualiza métricas e exporta CSV', async () => {
@@ -748,7 +823,7 @@ test('relatório docente filtra turmas e minijogos, atualiza métricas e exporta
         eq() { return this; },
         in() { return this; },
         order() { return this; },
-        range: async () => ({ data: sessions, error: null }),
+        range: async () => ({ data: table === 'game_sessions' ? sessions : resolved[table] || [], error: null }),
         then(resolve, reject) { return Promise.resolve({ data: resolved[table] || [], error: null }).then(resolve, reject); },
       };
       return query;
@@ -767,7 +842,7 @@ test('relatório docente filtra turmas e minijogos, atualiza métricas e exporta
     },
     addEventListener(type, handler) { (listeners[type] ||= []).push(handler); },
   };
-  const window = { location: { search: '' }, supabaseClient: client };
+  const window = { location: { search: '' }, teacherSupabaseClient: client };
   const urlApi = { createObjectURL: (blob) => { exportedBlob = blob; return 'blob:report'; }, revokeObjectURL() {} };
   const Option = class extends Element { constructor(text, value) { super(text, value); } };
   const source = fs.readFileSync(new URL('../js/professor-dashboard.js', import.meta.url), 'utf8');
@@ -903,8 +978,8 @@ test('dados de jogo e perfis ficam negados por padrão até definir políticas p
 test('telas com sincronização carregam o cliente Supabase antes do estado da aplicação', () => {
   for (const file of ['index.html', 'jogo.html', 'matematica.html', 'materias.html', 'professor.html', 'ranking.html']) {
     const html = fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
-    const clientIndex = html.indexOf('js/supabaseClient.js?v=3');
-    const stateIndex = html.indexOf('js/app-state.js?v=20');
+    const clientIndex = html.indexOf('js/supabaseClient.js?v=4');
+    const stateIndex = html.indexOf('js/app-state.js?v=22');
     assert.ok(clientIndex >= 0, `${file}: cliente Supabase ausente`);
     assert.ok(stateIndex > clientIndex, `${file}: app-state precisa carregar depois do cliente`);
   }

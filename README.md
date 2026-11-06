@@ -47,7 +47,9 @@ insert into public.teacher_classes (teacher_id, turma)
 values ('UUID-DO-USUARIO-AUTH', '4º ano');
 ```
 
-As telas mantêm uma cópia local e tentam sincronizar sessões, ranking, missões, preferências, cosméticos, conquistas e relatos quando o Auth/RLS está disponível. O quadro e o desenho de rascunho permanecem locais. A identidade anônima é vinculada ao navegador e não recupera automaticamente o perfil em outro aparelho. A pontuação é calculada no cliente e não deve ser tratada como inviolável para competição ou recompensa de valor real. A chave publicável fica no cliente; nunca coloque uma chave `secret`/`service_role` no navegador.
+As telas mantêm uma cópia local e tentam sincronizar sessões, ranking, missões, preferências, cosméticos, conquistas e relatos quando o Auth/RLS está disponível. O quadro e o desenho de rascunho permanecem locais. A identidade anônima é vinculada ao navegador e não recupera automaticamente o perfil em outro aparelho. As sessões do professor e do aluno usam armazenamentos separados. Professores que entraram antes dessa separação precisam entrar novamente uma vez. A pontuação é calculada no cliente e não deve ser tratada como inviolável para competição ou recompensa de valor real. A chave publicável fica no cliente; nunca coloque uma chave `secret`/`service_role` no navegador.
+
+**Limitação importante:** as permissões e o ranking ainda identificam turmas pelo ano, sem separar escolas. Não utilize o mesmo banco para várias escolas até que o isolamento por escola e a migração dos perfis existentes sejam implementados e validados.
 
 ## Área do professor (cadastro e login reais)
 
@@ -55,6 +57,6 @@ As telas mantêm uma cópia local e tentam sincronizar sessões, ranking, missõ
 2. A diretoria entra no painel de códigos (página inicial) e usa **Convidar professor(a)** para gerar um código `PROF-…` com turmas, número de usos e validade.
 3. O professor abre `professor.html`, escolhe **Criar conta**, informa nome, e-mail, senha e o código. Se a confirmação de e-mail estiver ativa, ele confirma pelo link recebido e conclui o cadastro informando nome e código.
 4. A sessão fica salva no navegador (Supabase Auth); ao voltar, o painel abre direto. Use **Sair** para encerrar.
-5. Em Supabase → Authentication → URL Configuration, permita `<origem do site>/professor.html` como Redirect URL e configure o SMTP para o envio dos e-mails.
+5. Em Supabase → Authentication → URL Configuration, permita `<origem do site>/professor.html` e `<origem do site>/professor.html?recuperacao=1` como Redirect URLs. Configure o envio de e-mails no Supabase e teste os links de confirmação e recuperação no domínio publicado.
 
-Recuperação de senha ainda não está implementada. O provisionamento manual via SQL em `teacher_accounts`/`teacher_classes` continua possível.
+O professor pode recuperar a senha pelo link **Esqueci minha senha**. Missões publicadas são carregadas do Supabase; missões que não puderam ser publicadas permanecem no navegador para nova tentativa. O provisionamento manual via SQL em `teacher_accounts`/`teacher_classes` continua possível.

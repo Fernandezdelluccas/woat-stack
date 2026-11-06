@@ -95,8 +95,8 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabaseClient.js?v=3"></script>
-  <script src="js/app-state.js?v=20"></script>
+  <script src="js/supabaseClient.js?v=4"></script>
+  <script src="js/app-state.js?v=22"></script>
   <script src="js/nav.js?v=8"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
@@ -117,7 +117,7 @@
           adicao: 'Adição', subtracao: 'Subtração', multiplicacao: 'Multiplicação',
           divisao: 'Divisão', formas: 'Formas geométricas', fracoes: 'Frações',
         };
-        const localChallenges = window.GeniosApp.getChallenges(player.turma);
+        const localChallenges = player.localOnly ? window.GeniosApp.getChallenges(player.turma) : [];
         const remoteResult = player.localOnly
           ? { ok: false, challenges: [] }
           : await window.GeniosApp.getRemoteClassChallenges(player.turma);
