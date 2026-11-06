@@ -263,6 +263,18 @@ test('entrada usa versão nova do módulo de login para descartar cache antigo',
   assert.ok(html.includes('js/app-state.js?v=20'));
 });
 
+test('ajuda de acesso explica criação e entrada e destaca caminhos alternativos', () => {
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const styles = fs.readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  assert.match(html, /<details class="login-help" open>/);
+  assert.ok(html.includes('Selecione <strong>Entrar</strong>'));
+  assert.ok(html.includes('código fornecido pela diretoria'));
+  assert.ok(html.includes('Acessar a área do professor'));
+  assert.ok(html.includes('Abrir modo de teste local'));
+  assert.ok(styles.includes('.login-help__step'));
+  assert.ok(styles.includes('.login-support__item'));
+});
+
 test('cadastro escolar falha fechado sem Supabase e não aceita código legado', async () => {
   const app = createApp({}, 'CODIGO-DE-TESTE', null, false);
   assert.equal((await app.authorizeSchoolEnrollment({ code: 'ESCOLA2026', turma: '4º ano' })).ok, false);
@@ -560,12 +572,13 @@ test('login do professor exige Auth e papel docente, e retorna à página intern
   const professorHtml = fs.readFileSync(new URL('../professor.html', import.meta.url), 'utf8');
   assert.ok(!professorHtml.includes('123456') && !professorHtml.includes('Acesso provisório:'), 'não deve expor senha docente de demonstração');
   class Element {
-    constructor() { this.style = {}; this.value = ''; this.handlers = {}; this.hidden = false; this.textContent = ''; }
+    constructor() { this.style = {}; this.value = ''; this.handlers = {}; this.hidden = false; this.textContent = ''; this.classList = { toggle() {} }; }
+    setAttribute() {}
     addEventListener(type, handler) { this.handlers[type] = handler; }
     reset() { this.value = ''; }
   }
 
-  const ids = ['loginSection', 'dashboardSection', 'professorLoginForm', 'professorEmail', 'professorPassword', 'loginError', 'logoutProfessor', 'cancelProfessorLogin', 'teacherNavigation'];
+  const ids = ['loginSection', 'dashboardSection', 'professorLoginForm', 'professorEmail', 'professorPassword', 'loginError', 'logoutProfessor', 'cancelProfessorLogin', 'teacherNavigation', 'teacherAuthTitle', 'teacherAuthIntro', 'teacherModeSwitch', 'teacherModeLogin', 'teacherModeRegister', 'teacherNameField', 'teacherName', 'teacherEmailField', 'teacherPasswordField', 'teacherCodeField', 'teacherInviteCode', 'teacherAuthHint', 'teacherAuthSubmit', 'loginNotice', 'teacherWelcome'];
   const elements = Object.fromEntries(ids.map((id) => [id, new Element()]));
   elements.loginSection.style.display = 'block';
   elements.dashboardSection.style.display = 'none';
@@ -647,14 +660,15 @@ test('login do professor exige Auth e papel docente, e retorna à página intern
   teacherAllowed = false;
   await elements.professorLoginForm.handlers.submit({ preventDefault() {} });
   assert.equal(elements.dashboardSection.style.display, 'none');
-  assert.equal(elements.loginError.textContent, 'Esta conta não está autorizada para acessar o painel do professor.');
-  assert.equal(signOutCount, 2);
+  assert.equal(signOutCount, 1, 'conta sem papel docente segue para concluir cadastro sem sair');
+  assert.equal(elements.teacherAuthSubmit.textContent.length > 0, true);
 
+  elements.teacherModeLogin.handlers.click();
   teacherLookupFails = true;
   await elements.professorLoginForm.handlers.submit({ preventDefault() {} });
   assert.match(elements.loginError.textContent, /Não foi possível verificar sua autorização/);
-  assert.equal(signOutCount, 3);
 
+  elements.teacherModeLogin.handlers.click();
   loginFailure = { status: 503, message: 'Auth service unavailable' };
   await elements.professorLoginForm.handlers.submit({ preventDefault() {} });
   assert.match(elements.loginError.textContent, /Não foi possível conectar ao serviço de autenticação/);
@@ -662,11 +676,12 @@ test('login do professor exige Auth e papel docente, e retorna à página intern
 
 test('painel docente local abre sem Auth remoto e sai para cadastro local de aluno', async () => {
   class Element {
-    constructor() { this.style = {}; this.handlers = {}; this.hidden = false; this.value = ''; }
+    constructor() { this.style = {}; this.handlers = {}; this.hidden = false; this.value = ''; this.classList = { toggle() {} }; }
+    setAttribute() {}
     addEventListener(type, handler) { this.handlers[type] = handler; }
     reset() {}
   }
-  const ids = ['loginSection', 'dashboardSection', 'professorLoginForm', 'professorEmail', 'professorPassword', 'loginError', 'logoutProfessor', 'cancelProfessorLogin', 'teacherNavigation', 'localTeacherNotice'];
+  const ids = ['loginSection', 'dashboardSection', 'professorLoginForm', 'professorEmail', 'professorPassword', 'loginError', 'logoutProfessor', 'cancelProfessorLogin', 'teacherNavigation', 'localTeacherNotice', 'teacherWelcome', 'teacherAuthTitle', 'teacherAuthIntro', 'teacherModeSwitch', 'teacherModeLogin', 'teacherModeRegister', 'teacherNameField', 'teacherName', 'teacherEmailField', 'teacherPasswordField', 'teacherCodeField', 'teacherInviteCode', 'teacherAuthHint', 'teacherAuthSubmit', 'loginNotice'];
   const elements = Object.fromEntries(ids.map((id) => [id, new Element()]));
   let redirect = '';
   let remoteCalls = 0;
@@ -907,6 +922,7 @@ test('dock remove tema, mantém música, recupera áudio suspenso e protege o PI
   const spoken = [];
   const spokenRates = [];
   const documentHandlers = {};
+  const appendedScripts = [];
   let audioContextCreations = 0;
   const audioContexts = [];
   const audioTimers = [];
@@ -964,7 +980,7 @@ test('dock remove tema, mantém música, recupera áudio suspenso e protege o PI
   })[selector] || null;
 
   const document = {
-    body: { appendChild() {} },
+    body: { appendChild(element) { appendedScripts.push(element); } },
     documentElement: { classList: { toggle(name, enabled) { if (enabled) rootClasses.add(name); else rootClasses.delete(name); } } },
     addEventListener(type, handler) { documentHandlers[type] = handler; },
     createElement(tagName) { return tagName === 'aside' ? dock : element(); },
@@ -1021,8 +1037,14 @@ test('dock remove tema, mantém música, recupera áudio suspenso e protege o PI
   assert.equal(volumeValue.value, '36%');
   assert.equal(voiceRateSlider.value, '1');
   assert.equal(voiceRateValue.value, '1.0×');
+  assert.equal(window.VLibrasWidget.position, 'L');
+  assert.equal(appendedScripts[0].src, 'https://vlibras.gov.br/app/vlibras-plugin.js');
+  assert.equal(appendedScripts[0].async, true);
   assert.equal(dock.innerHTML.includes('control-btn--theme'), false);
   assert.equal(dock.innerHTML.includes('control-btn--sound'), true);
+  assert.match(dock.innerHTML, /class="accessibility-controls" role="group" aria-label="Acessibilidade"/);
+  assert.match(dock.innerHTML, /class="sound-control" role="group" aria-label="Música"/);
+  assert.match(dock.innerHTML, /<\/details>\s*<\/div>\s*<div class="sound-control"/);
   volumeSlider.value = '57';
   volumeSlider.handlers.input();
   assert.equal(storage.get('exatas-play-volume'), '57');
@@ -1203,4 +1225,15 @@ test('painel da diretoria some no modo local sem Supabase', () => {
   const source = fs.readFileSync(new URL('../js/director-access-codes.js', import.meta.url), 'utf8');
   vm.runInNewContext(source, { window: { location: { search: '?modo=local' } }, document, URLSearchParams });
   assert.equal(panel.hidden, true);
+});
+test('cadastro docente usa convite da diretoria via RPCs sem policies diretas', () => {
+  const schema = fs.readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8');
+  const director = fs.readFileSync(new URL('../js/director-access-codes.js', import.meta.url), 'utf8');
+  const auth = fs.readFileSync(new URL('../js/professor-auth.js', import.meta.url), 'utf8');
+  assert.match(schema, /create table if not exists teacher_invite_codes/);
+  assert.match(schema, /function public\.create_teacher_invite_code/);
+  assert.match(schema, /function public\.register_teacher/);
+  assert.doesNotMatch(schema, /create policy[^;]*teacher_invite_codes/i);
+  assert.ok(director.includes('create_teacher_invite_code') && director.includes('PROF'));
+  assert.ok(auth.includes("rpc('register_teacher'") && auth.includes('signUp'));
 });

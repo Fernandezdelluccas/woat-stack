@@ -638,33 +638,84 @@ select:focus-visible {
 }
 
 .login-help {
-  margin-top: 16px;
-  border-top: 1px solid var(--color-glass-border);
-  color: var(--color-text-soft);
-  font-size: 0.82rem;
+  margin-top: 18px;
+  padding: 0 14px 14px;
+  border: 1px solid var(--color-glass-border);
+  border-radius: 12px;
+  background: var(--color-glass-strong);
+  color: var(--color-text);
+  font-size: 0.9rem;
   text-align: left;
 }
 
 .login-help summary {
-  padding: 12px 0 4px;
-  color: var(--color-accent-dark);
+  padding: 14px 0 2px;
+  color: #b6e2bf;
+  font-size: 1rem;
   font-weight: 800;
-  text-align: center;
   cursor: pointer;
 }
 
-.login-help ul {
-  display: grid;
-  gap: 8px;
-  margin: 10px 0 0;
-  padding-left: 20px;
+.login-help summary:focus-visible,
+.login-support a:focus-visible {
+  outline: 3px solid #f0c36a;
+  outline-offset: 3px;
+  border-radius: 3px;
 }
 
-.login-help code {
-  color: var(--color-secondary);
-  font-family: var(--font-body);
-  font-weight: 800;
-  overflow-wrap: anywhere;
+.login-help__content {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.login-help__step {
+  display: grid;
+  gap: 5px;
+  padding: 11px 12px;
+  border-left: 3px solid #83c99d;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  line-height: 1.5;
+}
+
+.login-help__step > strong {
+  color: #b6e2bf;
+}
+
+.login-help__step p {
+  margin: 0;
+  color: var(--color-text-soft);
+}
+
+.login-support {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.login-support__item {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--color-glass-border);
+  border-radius: 9px;
+  background: rgba(12, 31, 32, 0.72);
+  line-height: 1.45;
+}
+
+.login-support__item span {
+  color: var(--color-text-soft);
+  font-size: 0.84rem;
+}
+
+.login-support__item a {
+  width: fit-content;
+  color: #b6e2bf;
+  font-weight: 900;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
 }
 
 .form-feedback {
@@ -1721,10 +1772,18 @@ tbody tr:hover {
   animation: soundPulse 1.3s ease-in-out infinite;
 }
 
+.accessibility-controls {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
 .sound-control {
   display: flex;
   align-items: center;
   gap: 9px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(229, 237, 241, 0.22);
 }
 
 .volume-control {
@@ -2605,6 +2664,12 @@ tbody tr:hover {
 .director-panel { margin-top: 16px; padding-top: 4px; border-top: 1px solid var(--color-glass-border); text-align: left; font-size: 0.88rem; }
 .director-panel summary { padding: 10px 0; color: var(--color-accent-dark); font-weight: 800; text-align: center; cursor: pointer; }
 .director-panel .field { margin-bottom: 12px; }
+.teacher-invite { display: grid; gap: 8px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--color-glass-border); }
+.teacher-invite h3 { margin: 0; font-family: var(--font-heading); }
+.teacher-invite .hint { margin: 0; }
+.teacher-invite__classes { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 0; padding: 10px 12px; border: 1px solid var(--color-glass-border); border-radius: 9px; }
+.teacher-invite__classes legend { padding: 0 6px; font-weight: 800; }
+.teacher-invite__classes label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .teacher-code-form { display: grid; gap: 12px; margin-top: 12px; }
 .teacher-code-form .field { margin: 0; }
 .new-school-code { display: grid; gap: 10px; margin: 12px 0; padding: 12px; border-left: 4px solid var(--color-secondary); background: var(--color-hover); }
@@ -3207,5 +3272,9 @@ tbody tr:hover {
     height: 42px;
     gap: 5px;
     padding: 0 8px;
+  }
+
+  .sound-control {
+    padding-left: 7px;
   }
 }

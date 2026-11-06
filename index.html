@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=29" />
+  <link rel="stylesheet" href="css/style.css?v=31" />
   <style>
     body { justify-content: flex-start; min-height: 100svh; }
     .login-main { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; padding: clamp(16px, 3vh, 32px) 16px 32px; }
@@ -102,22 +102,33 @@
         <button type="submit" class="btn btn--primary btn--block" id="loginSubmit">Criar perfil e jogar</button>
           </form>
 
-          <details class="login-help">
-        <summary>Quais dados devo usar para entrar?</summary>
-        <ul>
-          <li><strong>Aluno da escola:</strong> use o código privado da turma fornecido pela diretoria.</li>
-          <li><strong>Visitante:</strong> nome e PIN escolhidos ao criar o perfil.</li>
-          <li><strong>Professor:</strong> use a conta fornecida pela escola.</li>
-          <li><strong>Diretoria:</strong> use o painel "Diretoria" abaixo para criar os códigos de cadastro.</li>
-        </ul>
+          <details class="login-help" open>
+            <summary>Como criar um perfil ou entrar?</summary>
+            <div class="login-help__content">
+              <div class="login-help__step">
+                <strong>Já tem perfil?</strong>
+                <p>Selecione <strong>Entrar</strong>, escolha “Da escola” ou “De fora” e informe os mesmos dados usados no cadastro. Para perfil escolar, selecione também a sua turma.</p>
+              </div>
+              <div class="login-help__step">
+                <strong>É seu primeiro acesso?</strong>
+                <p>Selecione <strong>Criar perfil</strong>. Para perfil escolar, informe nome, turma, um PIN novo de 4 números e o código fornecido pela diretoria. Para visitante, basta criar um nome e PIN.</p>
+                <p>Depois, use <strong>Entrar</strong> com o mesmo tipo de perfil e os mesmos dados.</p>
+              </div>
+            </div>
           </details>
 
           <p class="hint login-device-note" id="pinHelp">Crie um PIN de 4 números. Use o mesmo PIN para entrar novamente.</p>
 
-          <p class="hint" style="margin-top:18px;">
-            É professor(a)? <a href="professor.html" style="color: var(--color-primary-dark); font-weight:700;">Área do professor</a>
-          </p>
-          <p class="hint local-mode-link">Sem Supabase? <a href="index.html?modo=local">Testar perfil de turma neste aparelho</a>.</p>
+          <div class="login-support" aria-label="Outras opções de acesso">
+            <p class="login-support__item">
+              <span>É professor(a)?</span>
+              <a href="professor.html">Acessar a área do professor</a>
+            </p>
+            <p class="login-support__item">
+              <span>Quer testar neste aparelho sem validação da escola ou sincronização?</span>
+              <a href="index.html?modo=local">Abrir modo de teste local</a>
+            </p>
+          </div>
 
           <details class="director-panel" id="directorPanel">
             <summary>Diretoria: criar código da escola</summary>
@@ -164,6 +175,31 @@
               <div id="newSchoolCode" class="new-school-code" hidden></div>
               <div id="schoolCodesList" class="teacher-code-list" aria-live="polite"></div>
               <button type="button" class="btn btn--ghost" id="directorLogout">Sair da diretoria</button>
+              <section class="teacher-invite" aria-labelledby="teacherInviteTitle">
+                <h3 id="teacherInviteTitle">Convidar professor(a)</h3>
+                <p class="hint">O código libera o cadastro de uma conta docente nas turmas escolhidas. Ele expira e tem limite de usos.</p>
+                <form id="teacherInviteForm" class="teacher-code-form">
+                  <fieldset class="teacher-invite__classes">
+                    <legend>Turmas autorizadas</legend>
+                    <label><input type="checkbox" name="teacherInviteClass" value="1º ano" /> 1º ano</label>
+                    <label><input type="checkbox" name="teacherInviteClass" value="2º ano" /> 2º ano</label>
+                    <label><input type="checkbox" name="teacherInviteClass" value="3º ano" /> 3º ano</label>
+                    <label><input type="checkbox" name="teacherInviteClass" value="4º ano" /> 4º ano</label>
+                    <label><input type="checkbox" name="teacherInviteClass" value="5º ano" /> 5º ano</label>
+                  </fieldset>
+                  <div class="field">
+                    <label for="teacherInviteUses">Professores que podem usar o código</label>
+                    <input id="teacherInviteUses" type="number" min="1" max="50" value="1" required />
+                  </div>
+                  <div class="field">
+                    <label for="teacherInviteDays">Validade (dias)</label>
+                    <input id="teacherInviteDays" type="number" min="1" max="30" value="7" required />
+                  </div>
+                  <button type="submit" class="btn btn--primary">Gerar convite de professor</button>
+                </form>
+                <p id="teacherInviteFeedback" class="challenge-feedback" role="status" aria-live="polite"></p>
+                <div id="newTeacherInvite" class="new-school-code" hidden></div>
+              </section>
             </div>
           </details>
         </section>
@@ -185,8 +221,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabaseClient.js?v=3"></script>
   <script src="js/app-state.js?v=20"></script>
-  <script src="js/nav.js?v=7"></script>
-  <script src="js/director-access-codes.js?v=1"></script>
+  <script src="js/nav.js?v=8"></script>
+  <script src="js/director-access-codes.js?v=2"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const form = document.getElementById('playerLoginForm');

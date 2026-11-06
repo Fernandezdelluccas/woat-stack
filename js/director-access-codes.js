@@ -23,6 +23,11 @@
   const feedback = document.getElementById('schoolCodeFeedback');
   const resultPanel = document.getElementById('newSchoolCode');
   const list = document.getElementById('schoolCodesList');
+  const inviteForm = document.getElementById('teacherInviteForm');
+  const inviteUsesInput = document.getElementById('teacherInviteUses');
+  const inviteDaysInput = document.getElementById('teacherInviteDays');
+  const inviteFeedback = document.getElementById('teacherInviteFeedback');
+  const invitePanel = document.getElementById('newTeacherInvite');
 
   let client = null;
   let directorId = null;
@@ -37,10 +42,10 @@
     feedback.classList.toggle('is-error', isError);
   }
 
-  function createCode() {
+  function createCode(prefix = 'TURMA') {
     const bytes = new Uint8Array(12);
     window.crypto.getRandomValues(bytes);
-    return `TURMA-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+    return `${prefix}-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('').toUpperCase()}`;
   }
 
   async function hashCode(code) {
@@ -58,6 +63,11 @@
       resultPanel.replaceChildren();
       list.replaceChildren();
       showFeedback('');
+      if (invitePanel) {
+        invitePanel.hidden = true;
+        invitePanel.replaceChildren();
+      }
+      if (inviteFeedback) inviteFeedback.textContent = '';
     }
   }
 
@@ -69,10 +79,10 @@
     setLoggedIn(false);
   }
 
-  function renderNewCode(code, turma) {
-    resultPanel.replaceChildren();
+  function renderNewCode(code, turma, target = resultPanel, notify = showFeedback, description = '') {
+    target.replaceChildren();
     const message = document.createElement('p');
-    message.textContent = `Código da turma ${turma}. Copie e repasse aos professores agora; ele não poderá ser consultado novamente.`;
+    message.textContent = description || `Código da turma ${turma}. Copie e repasse aos professores agora; ele não poderá ser consultado novamente.`;
     const value = document.createElement('code');
     value.className = 'teacher-code-value';
     value.textContent = code;
@@ -83,13 +93,13 @@
     copyButton.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(code);
-        showFeedback('Código copiado. Compartilhe somente com os responsáveis por esta turma.');
+        notify('Código copiado. Compartilhe somente com os responsáveis.');
       } catch (error) {
-        showFeedback('Selecione e copie o código exibido.', true);
+        notify('Selecione e copie o código exibido.', true);
       }
     });
-    resultPanel.append(message, value, copyButton);
-    resultPanel.hidden = false;
+    target.append(message, value, copyButton);
+    target.hidden = false;
   }
 
   async function loadCodes() {
@@ -212,6 +222,45 @@
     codeForm.reset();
     usesInput.value = '30';
     await loadCodes();
+  });
+
+  inviteForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    invitePanel.hidden = true;
+    const setInviteFeedback = (message, isError = false) => {
+      inviteFeedback.textContent = message;
+      inviteFeedback.classList.toggle('is-error', isError);
+    };
+    if (!client || !directorId) {
+      setInviteFeedback('Entre com a conta da diretoria para convidar professores.', true);
+      return;
+    }
+
+    const turmas = Array.from(inviteForm.querySelectorAll?.('input[name="teacherInviteClass"]') || [])
+      .filter((input) => input.checked)
+      .map((input) => input.value);
+    const maxUses = Number(inviteUsesInput.value);
+    const days = Number(inviteDaysInput.value);
+    if (!turmas.length || !Number.isInteger(maxUses) || maxUses < 1 || maxUses > 50 || !Number.isInteger(days) || days < 1 || days > 30) {
+      setInviteFeedback('Escolha ao menos uma turma, de 1 a 50 professores e validade de 1 a 30 dias.', true);
+      return;
+    }
+
+    const code = createCode('PROF');
+    const { data, error } = await client.rpc('create_teacher_invite_code', {
+      p_code_hash: await hashCode(code),
+      p_turmas: turmas,
+      p_max_uses: maxUses,
+      p_expires_at: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
+    });
+    if (error || data !== true) {
+      setInviteFeedback('Convite não criado. Aplique o schema atualizado do Supabase e confirme que sua conta é da diretoria.', true);
+      return;
+    }
+
+    renderNewCode(code, '', invitePanel, setInviteFeedback, `Convite para ${turmas.join(', ')}, válido por ${days} dia(s). Copie e envie ao professor agora; ele não poderá ser consultado novamente.`);
+    setInviteFeedback('Convite criado. O professor deve abrir a Área do professor, tocar em Criar conta e informar este código.');
+    inviteForm.reset?.();
   });
 
   logoutButton.addEventListener('click', signOut);

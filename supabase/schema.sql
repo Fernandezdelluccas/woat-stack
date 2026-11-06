@@ -555,6 +555,103 @@ $function$;
 revoke all on function public.validate_school_access_code(text, text) from public;
 grant execute on function public.validate_school_access_code(text, text) to anon, authenticated;
 
+create table if not exists teacher_invite_codes (
+  code_hash text primary key,
+  school_name text not null,
+  turmas text[] not null check (cardinality(turmas) between 1 and 5),
+  created_by uuid references auth.users(id) on delete set null,
+  max_uses integer not null default 1 check (max_uses between 1 and 50),
+  used_count integer not null default 0 check (used_count >= 0),
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+
+-- Sem políticas: o acesso aos convites acontece somente pelos RPCs abaixo.
+alter table teacher_invite_codes enable row level security;
+revoke all on table teacher_invite_codes from anon, authenticated;
+
+create or replace function public.create_teacher_invite_code(
+  p_code_hash text,
+  p_turmas text[],
+  p_max_uses integer,
+  p_expires_at timestamptz
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $function$
+declare
+  invite_created boolean;
+begin
+  if auth.uid() is null
+     or coalesce(auth.jwt() ->> 'is_anonymous', 'false') = 'true'
+     or p_code_hash !~ '^[a-f0-9]{64}$'
+     or p_max_uses not between 1 and 50
+     or p_turmas is null
+     or cardinality(p_turmas) not between 1 and 5
+     or not (p_turmas <@ array['1º ano', '2º ano', '3º ano', '4º ano', '5º ano'])
+     or p_expires_at is null
+     or p_expires_at <= now()
+     or p_expires_at > now() + interval '31 days' then
+    return false;
+  end if;
+
+  insert into public.teacher_invite_codes (code_hash, school_name, turmas, created_by, max_uses, expires_at)
+  select p_code_hash, director.school_name, p_turmas, auth.uid(), p_max_uses, p_expires_at
+    from public.school_directors as director
+   where director.user_id = auth.uid()
+  on conflict (code_hash) do nothing
+  returning true into invite_created;
+
+  return coalesce(invite_created, false);
+end;
+$function$;
+
+create or replace function public.register_teacher(p_code text, p_display_name text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, extensions
+as $function$
+declare
+  invite record;
+begin
+  if auth.uid() is null
+     or coalesce(auth.jwt() ->> 'is_anonymous', 'false') = 'true'
+     or coalesce(auth.jwt() ->> 'email', '') = ''
+     or char_length(btrim(coalesce(p_code, ''))) < 12
+     or char_length(btrim(coalesce(p_display_name, ''))) not between 2 and 80
+     or exists (select 1 from public.teacher_accounts where user_id = auth.uid()) then
+    return false;
+  end if;
+
+  update public.teacher_invite_codes
+     set used_count = used_count + 1
+   where code_hash = encode(digest(upper(btrim(p_code)), 'sha256'), 'hex')
+     and used_count < max_uses
+     and expires_at > now()
+  returning school_name, turmas into invite;
+
+  if not found then
+    return false;
+  end if;
+
+  insert into public.teacher_accounts (user_id, school_name, display_name)
+  values (auth.uid(), invite.school_name, btrim(p_display_name));
+
+  insert into public.teacher_classes (teacher_id, turma)
+  select auth.uid(), unnest(invite.turmas);
+
+  return true;
+end;
+$function$;
+
+revoke all on function public.create_teacher_invite_code(text, text[], integer, timestamptz) from public;
+revoke all on function public.register_teacher(text, text) from public;
+grant execute on function public.create_teacher_invite_code(text, text[], integer, timestamptz) to authenticated;
+grant execute on function public.register_teacher(text, text) to authenticated;
+
 alter table rankings enable row level security;
 alter table pontuacoes enable row level security;
 revoke all on table rankings, pontuacoes from anon, authenticated;

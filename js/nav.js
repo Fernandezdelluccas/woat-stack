@@ -11,9 +11,28 @@
     setupTeacherNavigationLink();
     setupStudentLogoutButton();
     highlightCurrentPage();
+    setupVLibrasWidget();
     setupControlDock();
     renderUserChip();
   });
+
+  function setupVLibrasWidget() {
+    if (document.getElementById('vlibras-widget-loader')) return;
+
+    window.VLibrasWidget = {
+      ...window.VLibrasWidget,
+      position: 'L',
+    };
+
+    const script = document.createElement('script');
+    script.id = 'vlibras-widget-loader';
+    script.src = 'https://vlibras.gov.br/app/vlibras-plugin.js';
+    script.async = true;
+    script.addEventListener('error', () => {
+      console.error('Não foi possível carregar o widget do VLibras.');
+    });
+    document.body.appendChild(script);
+  }
 
   function setupTeacherNavigationLink() {
     const current = window.location.pathname.split('/').pop() || 'index.html';
@@ -90,24 +109,26 @@
   function setupControlDock() {
     const controls = document.createElement('aside');
     controls.className = 'app-controls';
-    controls.setAttribute('aria-label', 'Música e acessibilidade');
+    controls.setAttribute('aria-label', 'Controles de acessibilidade e música');
 
     controls.innerHTML = `
-      <button type="button" class="control-btn control-btn--voice" aria-label="Ativar leitura por voz" aria-pressed="false" title="Ativar leitura por voz">
-        <span aria-hidden="true">&#128483;</span>
-      </button>
-      <details class="accessibility-menu">
-        <summary aria-label="Configurações de acessibilidade" title="Configurações de acessibilidade">Aa</summary>
-        <div class="accessibility-menu__panel">
-          <label for="voiceRateSlider">Velocidade da leitura <output id="voiceRateValue"></output></label>
-          <input id="voiceRateSlider" type="range" min="0.7" max="1.4" step="0.1" value="1" aria-label="Velocidade da leitura por voz" />
-          <label class="contrast-toggle" for="highContrastToggle">
-            <input id="highContrastToggle" type="checkbox" />
-            <span>Alto contraste</span>
-          </label>
-        </div>
-      </details>
-      <div class="sound-control">
+      <div class="accessibility-controls" role="group" aria-label="Acessibilidade">
+        <button type="button" class="control-btn control-btn--voice" aria-label="Ativar leitura por voz" aria-pressed="false" title="Ativar leitura por voz">
+          <span aria-hidden="true">&#128483;</span>
+        </button>
+        <details class="accessibility-menu">
+          <summary aria-label="Configurações de acessibilidade" title="Configurações de acessibilidade">Aa</summary>
+          <div class="accessibility-menu__panel">
+            <label for="voiceRateSlider">Velocidade da leitura <output id="voiceRateValue"></output></label>
+            <input id="voiceRateSlider" type="range" min="0.7" max="1.4" step="0.1" value="1" aria-label="Velocidade da leitura por voz" />
+            <label class="contrast-toggle" for="highContrastToggle">
+              <input id="highContrastToggle" type="checkbox" />
+              <span>Alto contraste</span>
+            </label>
+          </div>
+        </details>
+      </div>
+      <div class="sound-control" role="group" aria-label="Música">
         <button type="button" class="control-btn control-btn--sound" aria-label="Ligar música" aria-pressed="false" title="Ligar música">
           <span aria-hidden="true">&#9835;</span>
         </button>

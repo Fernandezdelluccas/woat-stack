@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=30" />
+  <link rel="stylesheet" href="css/style.css?v=31" />
 </head>
 <body>
 
@@ -30,30 +30,46 @@
     <div class="container" id="loginSection">
       <div class="card login-card" style="max-width: 420px; margin: 0 auto;">
         <span class="eyebrow">Acesso restrito</span>
-        <h1>Login do Professor</h1>
-        <p>Entre com a conta de professor fornecida pelo administrador da escola.</p>
+        <h1 id="teacherAuthTitle">Login do Professor</h1>
+        <p id="teacherAuthIntro">Entre com seu e-mail e sua senha. Ainda não tem conta? Toque em <strong>Criar conta</strong> e use o código de convite da diretoria.</p>
+
+        <div class="login-switch login-switch--compact" id="teacherModeSwitch" role="group" aria-label="Ação da conta do professor">
+          <button type="button" class="login-switch__button is-active" id="teacherModeLogin" aria-pressed="true">Entrar</button>
+          <button type="button" class="login-switch__button" id="teacherModeRegister" aria-pressed="false">Criar conta</button>
+        </div>
 
         <form id="professorLoginForm">
-          <div class="field">
+          <div class="field" id="teacherNameField" hidden>
+            <label for="teacherName">Seu nome</label>
+            <input type="text" id="teacherName" placeholder="Como os alunos devem chamar você?" autocomplete="name" maxlength="80" />
+          </div>
+
+          <div class="field" id="teacherEmailField">
             <label for="professorEmail">E-mail</label>
             <input type="email" id="professorEmail" placeholder="voce@escola.com" autocomplete="username" required />
           </div>
 
-          <div class="field">
+          <div class="field" id="teacherPasswordField">
             <label for="professorPassword">Senha</label>
-            <input type="password" id="professorPassword" placeholder="Digite sua senha" required />
+            <input type="password" id="professorPassword" placeholder="Digite sua senha" autocomplete="current-password" required />
           </div>
 
-          <p class="hint" style="margin: -4px 0 16px; text-align: left;">
+          <div class="field" id="teacherCodeField" hidden>
+            <label for="teacherInviteCode">Código de convite da diretoria</label>
+            <input type="password" id="teacherInviteCode" placeholder="PROF-XXXXXXXXXXXXXXXXXXXXXXXX" autocomplete="off" maxlength="64" />
+          </div>
+
+          <p class="hint" id="teacherAuthHint" style="margin: -4px 0 16px; text-align: left;">
             O acesso é validado pela conta autenticada e pela autorização de professor.
           </p>
 
-          <button type="submit" class="btn btn--primary btn--block">Entrar</button>
+          <button type="submit" class="btn btn--primary btn--block" id="teacherAuthSubmit">Entrar</button>
         </form>
 
         <button type="button" id="cancelProfessorLogin" class="btn btn--ghost btn--block" style="margin-top:10px;">Cancelar e voltar</button>
         <p class="hint local-mode-link">Para testar sem Supabase, <a href="professor.html?modo=local">abra o painel local</a>. Ele não libera acesso remoto.</p>
 
+        <p class="hint" id="loginNotice" role="status" aria-live="polite" style="margin-top:16px; color: var(--color-accent-dark); font-weight:800; display:none;"></p>
         <p class="hint" id="loginError" role="alert" aria-live="assertive" style="margin-top:16px; color: var(--color-danger-dark); display:none;">
           E-mail ou senha incorretos.
         </p>
@@ -65,6 +81,7 @@
         <span class="eyebrow">Painel do Professor</span>
         <h1>Turmas e missões</h1>
         <p>Publique uma missão para a turma e acompanhe o aprendizado.</p>
+        <p class="hint" id="teacherWelcome" hidden></p>
         <div style="margin-top: 18px;">
           <button type="button" id="logoutProfessor" class="btn btn--ghost">Sair</button>
         </div>
@@ -175,9 +192,9 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabaseClient.js?v=3"></script>
-  <script src="js/nav.js?v=7"></script>
+  <script src="js/nav.js?v=8"></script>
   <script src="js/app-state.js?v=20"></script>
-  <script src="js/professor-auth.js?v=9"></script>
+  <script src="js/professor-auth.js?v=10"></script>
   <script src="js/professor-dashboard.js?v=5"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
