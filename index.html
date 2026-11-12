@@ -33,8 +33,8 @@
           <p>Entre com seu nome e um PIN fácil de lembrar.</p>
 
           <div class="login-switch" id="accountTypeSwitch" role="group" aria-label="Tipo de acesso">
-            <button type="button" class="login-switch__button is-active" data-account-type="school" aria-pressed="true">Da escola</button>
-            <button type="button" class="login-switch__button" data-account-type="outside" aria-pressed="false">De fora</button>
+            <button type="button" class="login-switch__button is-active" data-account-type="school" aria-pressed="true">Sou da escola</button>
+            <button type="button" class="login-switch__button" data-account-type="outside" aria-pressed="false">Sou visitante</button>
           </div>
           <p class="login-note" id="accountTypeDescription">Informe seu nome, turma e PIN.</p>
           <p class="local-mode-note" id="localModeNotice" hidden>Modo local de teste: os perfis e desafios ficam apenas neste navegador; não há validação da escola nem sincronização.</p>
@@ -42,8 +42,8 @@
 
         <section class="login-form-section" aria-label="Dados de acesso">
           <div class="login-switch login-switch--compact" id="authModeSwitch" role="group" aria-label="Ação da conta">
-            <button type="button" class="login-switch__button" data-auth-mode="login" aria-pressed="false">Entrar</button>
-            <button type="button" class="login-switch__button is-active" data-auth-mode="register" aria-pressed="true">Criar perfil</button>
+            <button type="button" class="login-switch__button" data-auth-mode="login" aria-pressed="false">Já tenho perfil</button>
+            <button type="button" class="login-switch__button is-active" data-auth-mode="register" aria-pressed="true">Primeiro acesso</button>
           </div>
 
           <form id="playerLoginForm" autocomplete="on">
@@ -102,17 +102,17 @@
         <button type="submit" class="btn btn--primary btn--block" id="loginSubmit">Criar perfil e jogar</button>
           </form>
 
-          <details class="login-help" open>
-            <summary>Como criar um perfil ou entrar?</summary>
+          <details class="login-help">
+            <summary>Qual opção devo escolher?</summary>
             <div class="login-help__content">
               <div class="login-help__step">
                 <strong>Já tem perfil?</strong>
-                <p>Selecione <strong>Entrar</strong>, escolha “Da escola” ou “De fora” e informe os mesmos dados usados no cadastro. Para perfil escolar, selecione também a sua turma.</p>
+                <p>Toque em <strong>Já tenho perfil</strong>, escolha “Sou da escola” ou “Sou visitante” e informe os dados usados no cadastro. Para perfil escolar, selecione também a turma.</p>
               </div>
               <div class="login-help__step">
                 <strong>É seu primeiro acesso?</strong>
-                <p>Selecione <strong>Criar perfil</strong>. Para perfil escolar, informe nome, turma, um PIN novo de 4 números e o código fornecido pela diretoria. Para visitante, basta criar um nome e PIN.</p>
-                <p>Depois, use <strong>Entrar</strong> com o mesmo tipo de perfil e os mesmos dados.</p>
+                <p>Toque em <strong>Primeiro acesso</strong>. Para criar um perfil escolar, informe nome, turma, um PIN novo de 4 números e o código fornecido pela diretoria. Como visitante, basta criar um nome e PIN.</p>
+                <p>O perfil e a partida em andamento ficam neste aparelho. Na tela do jogador, use <strong>Baixar cópia</strong> para transferir seus dados.</p>
               </div>
             </div>
           </details>
@@ -220,7 +220,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabaseClient.js?v=4"></script>
-  <script src="js/app-state.js?v=22"></script>
+  <script src="js/app-state.js?v=23"></script>
   <script src="js/nav.js?v=8"></script>
   <script src="js/director-access-codes.js?v=2"></script>
   <script>
@@ -278,11 +278,13 @@
           ? 'Modo local: escolha a turma e crie um perfil para testar o jogo neste aparelho.'
           : accountType === 'school'
           ? isRegistering
-            ? 'Peça à diretoria o código da sua turma para criar um perfil escolar.'
-            : 'Entre com seu nome, sua turma e seu PIN.'
-          : 'Para entrar como visitante, informe seu nome e seu PIN.';
+              ? 'Para criar um perfil escolar, peça à diretoria o código da sua turma.'
+              : 'Entre com seu nome, sua turma e seu PIN.'
+            : isRegistering
+              ? 'Crie um perfil de visitante com seu nome e um PIN.'
+              : 'Entre como visitante com o nome e o PIN do seu perfil.';
         loginSubmit.textContent = isRegistering
-          ? accountType === 'school' ? 'Criar perfil escolar' : 'Criar perfil de visitante'
+            ? accountType === 'school' ? 'Criar perfil escolar' : 'Criar perfil e jogar'
           : 'Entrar e jogar';
         accountTypeButtons.forEach((button) => {
           const selected = button.dataset.accountType === accountType;

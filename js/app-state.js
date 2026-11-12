@@ -524,7 +524,7 @@
 
   function getGamePreferences(gameKey) {
     const preferences = readScopedJson(STORAGE_KEYS.gamePreferences, {});
-    return preferences?.[gameKey] || { goalTarget: 2, untimed: false };
+    return preferences?.[gameKey] || { goalTarget: 2, untimed: true };
   }
 
   function saveGamePreferences(gameKey, preferences) {

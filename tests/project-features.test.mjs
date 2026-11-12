@@ -261,19 +261,47 @@ test('login explica perfil inexistente separadamente de PIN incorreto', async ()
 
 test('entrada usa versão nova do módulo de login para descartar cache antigo', () => {
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.ok(html.includes('js/app-state.js?v=22'));
+  assert.ok(html.includes('js/app-state.js?v=23'));
 });
 
 test('ajuda de acesso explica criação e entrada e destaca caminhos alternativos', () => {
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const styles = fs.readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
-  assert.match(html, /<details class="login-help" open>/);
-  assert.ok(html.includes('Selecione <strong>Entrar</strong>'));
+  assert.match(html, /<details class="login-help">/);
+  assert.ok(html.includes('Toque em <strong>Já tenho perfil</strong>'));
+  assert.ok(html.includes('Toque em <strong>Primeiro acesso</strong>'));
   assert.ok(html.includes('código fornecido pela diretoria'));
   assert.ok(html.includes('Acessar a área do professor'));
   assert.ok(html.includes('Abrir modo de teste local'));
   assert.ok(styles.includes('.login-help__step'));
   assert.ok(styles.includes('.login-support__item'));
+});
+
+test('página inicial prioriza retomar a partida e recolhe recursos secundários', () => {
+  const html = fs.readFileSync(new URL('../materias.html', import.meta.url), 'utf8');
+  const styles = fs.readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  assert.ok(html.includes('id="continueGameCard"'));
+  assert.ok(html.includes('getGameDraft?.()'));
+  assert.ok(html.includes('Retomar partida'));
+  assert.ok(html.includes('lastSession.gameKey'));
+  assert.equal((html.match(/<details class="dashboard-extra">/g) || []).length, 4);
+  assert.ok(styles.includes('.continue-card'));
+  const inlineScripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+  assert.equal(inlineScripts.length, 1);
+  assert.doesNotThrow(() => new Function(inlineScripts[0][1]));
+});
+
+test('jogos novos começam sem cronômetro e mantêm a preferência escolhida', () => {
+  const app = createApp();
+  assert.equal(app.getGamePreferences('adicao').untimed, true);
+  app.saveGamePreferences('adicao', { goalTarget: 2, untimed: false });
+  assert.equal(app.getGamePreferences('adicao').untimed, false);
+
+  const game = fs.readFileSync(new URL('../jogo.html', import.meta.url), 'utf8');
+  const runner = fs.readFileSync(new URL('../js/game-runner.js', import.meta.url), 'utf8');
+  assert.match(game, /id="untimedMode" checked/);
+  assert.ok(runner.includes('{ goalTarget: 2, untimed: true }'));
+  assert.ok(runner.includes("['speed-run', !state.untimed && state.seconds <= 120]"));
 });
 
 test('cadastro escolar falha fechado sem Supabase e não aceita código legado', async () => {
@@ -510,7 +538,7 @@ test('todos os minijogos respeitam o limite de conteúdo da série escolhida', (
   const html = fs.readFileSync(new URL('../jogo.html', import.meta.url), 'utf8');
   assert.ok(runner.includes('grade: schoolGrade'));
   assert.ok(runner.includes('Conteúdo até o ${schoolGrade}º ano'));
-  assert.ok(html.includes('js/game-runner.js?v=19'));
+  assert.ok(html.includes('js/game-runner.js?v=20'));
 });
 
 test('scripts inline de todas as páginas compilam e perfis não entram em innerHTML', () => {
@@ -931,6 +959,7 @@ test('pausa do jogo bloqueia o fundo e mantém o foco dentro do diálogo', () =>
 test('feedback de erro informa a alternativa escolhida e a resposta correta', () => {
   const runner = fs.readFileSync(new URL('../js/game-runner.js', import.meta.url), 'utf8');
   assert.ok(runner.includes('Você escolheu ${formatAnswer(selectedValue)}. A resposta correta é ${formatAnswer(correctValue)}.'));
+  assert.ok(runner.includes('Tente usar essa ideia na próxima questão.'));
   assert.ok(runner.includes('Muito bem! A resposta é ${formatAnswer(correctValue)}.'));
 });
 
@@ -994,7 +1023,7 @@ test('telas com sincronização carregam o cliente Supabase antes do estado da a
   for (const file of ['index.html', 'jogo.html', 'matematica.html', 'materias.html', 'professor.html', 'ranking.html']) {
     const html = fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
     const clientIndex = html.indexOf('js/supabaseClient.js?v=4');
-    const stateIndex = html.indexOf('js/app-state.js?v=22');
+    const stateIndex = html.indexOf('js/app-state.js?v=23');
     assert.ok(clientIndex >= 0, `${file}: cliente Supabase ausente`);
     assert.ok(stateIndex > clientIndex, `${file}: app-state precisa carregar depois do cliente`);
   }

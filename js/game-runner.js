@@ -12,7 +12,7 @@ const gradeDescription = player.accountType === 'school'
   ? `Conteúdo até o ${schoolGrade}º ano`
   : `Dificuldade de referência: ${schoolGrade}º ano`;
 const gameInfo = getGameDefinition(gameKey);
-const gamePreferences = window.GeniosApp?.getGamePreferences?.(gameKey) || { goalTarget: 2, untimed: false };
+const gamePreferences = window.GeniosApp?.getGamePreferences?.(gameKey) || { goalTarget: 2, untimed: true };
 
 const state = {
   index: 0,
@@ -833,7 +833,7 @@ function answerQuestion(button, selectedValue, correctValue, explanation) {
     state.score = Math.max(0, state.score - 4);
     state.retryReason = explanation;
     speakToPlayer(`DICA: ${explanation}`);
-    if (answerFeedback) answerFeedback.textContent = `Você escolheu ${formatAnswer(selectedValue)}. A resposta correta é ${formatAnswer(correctValue)}. ${explanation}`;
+    if (answerFeedback) answerFeedback.textContent = `Você escolheu ${formatAnswer(selectedValue)}. A resposta correta é ${formatAnswer(correctValue)}. ${explanation} Tente usar essa ideia na próxima questão.`;
   }
 
   scoreEl.textContent = `${state.score} pts`;
@@ -952,7 +952,7 @@ function finishGame() {
       ['all-subjects', playedGames.size >= 5],
       ['perfect-game', state.totalWrong === 0],
       ['streak-master', state.bestStreak >= 5],
-      ['speed-run', state.seconds <= 120],
+      ['speed-run', !state.untimed && state.seconds <= 120],
     ];
 
     achievements.forEach(([id, earned]) => {

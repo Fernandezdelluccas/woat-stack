@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=29" />
+  <link rel="stylesheet" href="css/style.css?v=30" />
 </head>
 <body>
 
@@ -31,20 +31,31 @@
     <div class="container">
       <div class="page-head">
         <span class="eyebrow" id="welcomeLabel">Olá! 👋</span>
-        <h1>O que vamos estudar hoje?</h1>
-        <p>Escolha uma matéria para começar a jogar.</p>
+        <h1>Pronto para jogar?</h1>
+        <p>Continue de onde parou ou escolha uma atividade para praticar.</p>
         <a href="jogo.html?game=adicao&tutorial=manual" class="btn btn--ghost" style="display:inline-flex; margin-top:14px;">📘 Como jogar</a>
       </div>
 
+      <section class="continue-card" id="continueGameCard" aria-labelledby="continueGameTitle">
+        <div>
+          <span class="eyebrow">Sua próxima aventura</span>
+          <h2 id="continueGameTitle">Vamos começar?</h2>
+          <p id="continueGameDescription">Escolha uma atividade e pratique no seu ritmo.</p>
+        </div>
+        <a id="continueGameLink" class="btn btn--primary" href="matematica.html">Escolher primeira atividade</a>
+      </section>
+
       <div class="grid grid--single">
         <a href="matematica.html" class="tile">
-          <span class="badge badge--live">Disponível</span>
+          <span class="badge badge--live">6 atividades</span>
           <div class="tile__icon" style="background: rgba(108,92,231,0.14); color: var(--color-primary-dark);">🧮</div>
-          <h3 class="tile__title">Matemática</h3>
-          <p class="tile__desc">Adição, subtração, multiplicação, divisão e muito mais.</p>
+          <h3 class="tile__title">Escolher outra atividade</h3>
+          <p class="tile__desc">Explore adição, subtração, multiplicação, divisão, formas e frações.</p>
         </a>
       </div>
 
+      <details class="dashboard-extra">
+        <summary>Personalizar meu pet</summary>
       <section class="avatar-studio" id="avatar-store" aria-labelledby="studioTitle">
         <div class="avatar-studio__intro">
           <span class="eyebrow">CRUZEIRO DO SUL · ANÁLIA FRANCO I</span>
@@ -76,7 +87,10 @@
           </div>
         </div>
       </section>
+      </details>
 
+      <details class="dashboard-extra">
+        <summary>Ver minhas medalhas e conquistas</summary>
       <section class="achievements-panel" aria-labelledby="achievementsTitle">
         <div>
           <span class="eyebrow">Suas conquistas</span>
@@ -84,7 +98,10 @@
         </div>
         <div class="achievement-grid" id="achievementGrid"></div>
       </section>
+      </details>
 
+      <details class="dashboard-extra">
+        <summary>Ver histórico de atividades</summary>
       <section class="activity-panel" aria-labelledby="activityTitle">
         <div>
           <span class="eyebrow">Seu progresso</span>
@@ -92,7 +109,10 @@
         </div>
         <div class="activity-list" id="gameHistoryList" aria-live="polite"></div>
       </section>
+      </details>
 
+      <details class="dashboard-extra">
+        <summary>Gerenciar perfil e privacidade</summary>
       <section class="account-tools" aria-labelledby="accountToolsTitle">
         <div>
           <span class="eyebrow">Seu perfil neste aparelho</span>
@@ -108,6 +128,7 @@
         </div>
         <p id="accountToolsFeedback" class="hint" role="status" aria-live="polite"></p>
       </section>
+      </details>
     </div>
   </main>
 
@@ -124,7 +145,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabaseClient.js?v=4"></script>
-  <script src="js/app-state.js?v=22"></script>
+  <script src="js/app-state.js?v=23"></script>
   <script src="js/nav.js?v=8"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -150,7 +171,48 @@
       const studioPetBubble = document.getElementById('studioPetBubble');
       const achievementGrid = document.getElementById('achievementGrid');
       const gameHistoryList = document.getElementById('gameHistoryList');
+      const continueGameTitle = document.getElementById('continueGameTitle');
+      const continueGameDescription = document.getElementById('continueGameDescription');
+      const continueGameLink = document.getElementById('continueGameLink');
       let activeCategory = 'personagem';
+      const gameLabels = {
+        adicao: 'Adição',
+        subtracao: 'Subtração',
+        multiplicacao: 'Multiplicação',
+        divisao: 'Divisão',
+        formas: 'Formas geométricas',
+        fracoes: 'Frações',
+      };
+
+      const renderContinueGame = () => {
+        const draft = window.GeniosApp.getGameDraft?.();
+        const history = window.GeniosApp.getGameHistory?.() || [];
+        if (draft?.questions?.length && gameLabels[draft.gameKey]) {
+          const params = new URLSearchParams({ game: draft.gameKey });
+          if (draft.challengeId) params.set('challenge', draft.challengeId);
+          if (draft.challengeTitle) params.set('title', draft.challengeTitle);
+          if (draft.challengeId && draft.levelTarget) params.set('goal', String(draft.levelTarget));
+          continueGameTitle.textContent = draft.challengeTitle || 'Sua partida está salva';
+          continueGameDescription.textContent = `${gameLabels[draft.gameKey]} · nível ${draft.level || 1}, questão ${(draft.index || 0) + 1}. A partida em andamento fica salva neste aparelho.`;
+          continueGameLink.href = `jogo.html?${params.toString()}`;
+          continueGameLink.textContent = 'Retomar partida';
+          return;
+        }
+
+        const lastSession = history.at(-1);
+        if (lastSession && gameLabels[lastSession.gameKey]) {
+          continueGameTitle.textContent = 'Continue praticando';
+          continueGameDescription.textContent = `Sua última aventura foi ${gameLabels[lastSession.gameKey]}. Jogue de novo quando quiser.`;
+          continueGameLink.href = `jogo.html?game=${encodeURIComponent(lastSession.gameKey)}`;
+          continueGameLink.textContent = `Jogar ${gameLabels[lastSession.gameKey]} novamente`;
+          return;
+        }
+
+        continueGameTitle.textContent = 'Vamos começar?';
+        continueGameDescription.textContent = 'Escolha uma atividade e pratique no seu ritmo. O cronômetro fica desligado por padrão.';
+        continueGameLink.href = 'matematica.html';
+        continueGameLink.textContent = 'Escolher primeira atividade';
+      };
 
       const findItem = (id) => (window.GeniosApp.characterCatalog || []).find((item) => item.id === id);
 
@@ -178,14 +240,6 @@
 
       const renderGameHistory = () => {
         if (!gameHistoryList) return;
-        const gameLabels = {
-          adicao: 'Adição',
-          subtracao: 'Subtração',
-          multiplicacao: 'Multiplicação',
-          divisao: 'Divisão',
-          formas: 'Formas geométricas',
-          fracoes: 'Frações',
-        };
         const history = (window.GeniosApp.getGameHistory?.() || []).slice(-5).reverse();
         gameHistoryList.replaceChildren();
 
@@ -295,6 +349,7 @@
       renderShop();
       renderAchievements();
       renderGameHistory();
+      renderContinueGame();
 
       const toolsFeedback = document.getElementById('accountToolsFeedback');
       const exportButton = document.getElementById('exportProfileButton');
