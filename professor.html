@@ -163,6 +163,18 @@
               <option value="fracoes">Frações</option>
             </select>
           </div>
+          <div class="field">
+            <label for="reportStudentFilter">Aluno</label>
+            <select id="reportStudentFilter"><option value="">Todos os alunos</option></select>
+          </div>
+          <div class="field">
+            <label for="reportStartDate">A partir de</label>
+            <input id="reportStartDate" type="date" />
+          </div>
+          <div class="field">
+            <label for="reportEndDate">Até</label>
+            <input id="reportEndDate" type="date" />
+          </div>
           <button type="button" class="btn btn--ghost" id="refreshTeacherReport" aria-label="Atualizar relatório" title="Atualizar relatório" disabled>↻ Atualizar</button>
           <button type="button" class="btn btn--primary" id="exportTeacherReport" aria-label="Exportar relatório CSV" title="Exportar relatório CSV" disabled>⇩ Exportar CSV</button>
         </div>
@@ -170,6 +182,11 @@
           <p>Alunos: <strong id="reportStudentCount">0</strong></p>
           <p>Partidas: <strong id="reportSessionCount">0</strong></p>
           <p>Acertos: <strong id="reportAccuracy">0%</strong></p>
+        </div>
+        <div class="teacher-question-reports">
+          <h3>Acertos por minijogo</h3>
+          <p class="hint">Resultados das partidas nos filtros selecionados; não substituem a avaliação pedagógica.</p>
+          <ul id="reportGameSummary" aria-live="polite"></ul>
         </div>
         <div class="table-wrap">
           <table>
@@ -202,7 +219,7 @@
   <script src="js/nav.js?v=8"></script>
   <script src="js/app-state.js?v=22"></script>
   <script src="js/professor-auth.js?v=12"></script>
-  <script src="js/professor-dashboard.js?v=7"></script>
+  <script src="js/professor-dashboard.js?v=8"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const form = document.getElementById('challengeForm');

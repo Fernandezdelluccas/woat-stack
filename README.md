@@ -60,3 +60,5 @@ As telas mantêm uma cópia local e tentam sincronizar sessões, ranking, missõ
 5. Em Supabase → Authentication → URL Configuration, permita `<origem do site>/professor.html` e `<origem do site>/professor.html?recuperacao=1` como Redirect URLs. Configure o envio de e-mails no Supabase e teste os links de confirmação e recuperação no domínio publicado.
 
 O professor pode recuperar a senha pelo link **Esqueci minha senha**. Missões publicadas são carregadas do Supabase; missões que não puderam ser publicadas permanecem no navegador para nova tentativa. O provisionamento manual via SQL em `teacher_accounts`/`teacher_classes` continua possível.
+
+O relatório docente pode ser filtrado por turma, minijogo, aluno e período, e apresenta um resumo de acertos e erros por minijogo. As datas usam o horário local do navegador e incluem o dia final; os filtros de período se aplicam às partidas e aos relatos, não ao total de alunos cadastrados. A exportação CSV segue os mesmos filtros.

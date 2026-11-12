@@ -801,15 +801,15 @@ test('relatório docente filtra turmas e minijogos, atualiza métricas e exporta
     replaceChildren(...items) { this.children = items; }
     click() { this.handlers.click?.(); this.wasClicked = true; }
   }
-  const ids = ['teacherReportPanel', 'teacherReportFeedback', 'teacherReportRows', 'teacherQuestionReports', 'reportStudentCount', 'reportSessionCount', 'reportAccuracy', 'reportClassFilter', 'reportGameFilter', 'refreshTeacherReport', 'exportTeacherReport', 'challengeClass', 'challengeSubmit', 'challengeFeedback'];
+  const ids = ['teacherReportPanel', 'teacherReportFeedback', 'teacherReportRows', 'teacherQuestionReports', 'reportGameSummary', 'reportStudentCount', 'reportSessionCount', 'reportAccuracy', 'reportClassFilter', 'reportGameFilter', 'reportStudentFilter', 'reportStartDate', 'reportEndDate', 'refreshTeacherReport', 'exportTeacherReport', 'challengeClass', 'challengeSubmit', 'challengeFeedback'];
   const elements = Object.fromEntries(ids.map((id) => [id, new Element()]));
   elements.reportClassFilter.value = '';
   elements.reportGameFilter.value = '';
   const classes = [{ turma: '4º ano' }, { turma: '5º ano' }];
   const students = [{ id: 'p1', nome: 'Ana', turma: '4º ano' }, { id: 'p2', nome: '=Bia', turma: '5º ano' }];
   const sessions = [
-    { profile_id: 'p1', game_key: 'adicao', score: 12, correct_answers: 3, wrong_answers: 1, elapsed_seconds: 60 },
-    { profile_id: 'p2', game_key: 'fracoes', score: 20, correct_answers: 2, wrong_answers: 0, elapsed_seconds: 90 },
+    { profile_id: 'p1', game_key: 'adicao', score: 12, correct_answers: 3, wrong_answers: 1, elapsed_seconds: 60, created_at: '2026-01-10T12:00:00Z' },
+    { profile_id: 'p2', game_key: 'fracoes', score: 20, correct_answers: 2, wrong_answers: 0, elapsed_seconds: 90, created_at: '2026-02-10T12:00:00Z' },
   ];
   const states = [];
   const reportCalls = {};
@@ -852,6 +852,8 @@ test('relatório docente filtra turmas e minijogos, atualiza métricas e exporta
   assert.equal(elements.reportStudentCount.textContent, '2');
   assert.equal(elements.reportSessionCount.textContent, '2');
   assert.equal(elements.reportAccuracy.textContent, '83%');
+  assert.match(elements.reportGameSummary.children[0].textContent, /Adição: 75% de acertos · 1 erro/);
+  assert.equal(elements.reportStudentFilter.children.length, 3);
   assert.equal(elements.challengeClass.disabled, false);
   assert.deepEqual(elements.challengeClass.children.map((option) => option.value), ['', '4º ano', '5º ano']);
 
@@ -866,6 +868,19 @@ test('relatório docente filtra turmas e minijogos, atualiza métricas e exporta
   elements.exportTeacherReport.handlers.click();
   assert.equal(exportedLink.download.startsWith('relatorio-turma-'), true);
   assert.match(await exportedBlob.text(), /"'=Bia";"5º ano";"Frações"/);
+  elements.reportClassFilter.value = '';
+  elements.reportGameFilter.value = '';
+  elements.reportStudentFilter.value = 'p1';
+  elements.reportStartDate.value = '2026-01-01';
+  elements.reportEndDate.value = '2026-01-31';
+  elements.reportStudentFilter.handlers.change();
+  assert.equal(elements.reportStudentCount.textContent, '1');
+  assert.equal(elements.reportSessionCount.textContent, '1');
+  assert.equal(elements.teacherReportRows.children[0].children[0].textContent, 'Ana');
+  elements.reportStartDate.value = '2026-02-01';
+  elements.reportStartDate.handlers.change();
+  assert.match(elements.teacherReportFeedback.textContent, /data inicial/);
+  assert.equal(elements.exportTeacherReport.disabled, true);
   await elements.refreshTeacherReport.handlers.click();
   assert.equal(reportCalls.teacher_classes, 3);
 });
